@@ -38,9 +38,9 @@ size_t cur_element_count(rust_hnsw_index_t index)
     return cast(index)->appr_alg->cur_element_count;
 }
 
-bool get_data_pointer_by_label(rust_hnsw_index_t index, size_t label, float *dst)
+float *get_item(rust_hnsw_index_t index, size_t label)
 {
-    return cast(index)->getDataPointerByLabel(label, dst);
+    return cast(index)->getItem(label);
 }
 
 size_t query(rust_hnsw_index_t index, float *vector, size_t *items, float *distances, size_t k)

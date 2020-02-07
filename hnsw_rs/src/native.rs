@@ -29,8 +29,7 @@ extern "C" {
     pub fn cur_element_count(index: rust_hnsw_index_t) -> usize;
 
 
-    pub fn get_data_pointer_by_label(index: rust_hnsw_index_t, label: usize, dst: *mut f32)
-                                     -> bool;
+    pub fn get_item(index: rust_hnsw_index_t, label: usize) -> *mut f32;
 
     pub fn query(
         index: rust_hnsw_index_t,

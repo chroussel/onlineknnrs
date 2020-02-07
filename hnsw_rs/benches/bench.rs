@@ -14,13 +14,18 @@ use std::fs;
 const DIM: i32 = 100;
 const NB_EMBEDDINGS: usize = 50;
 const INDEX_ID: i32 = 5;
+const index_file_path:&str = "data/index-10k.hnsw";
+const ids_file_path:&str = "data/input-ids-15k.csv";
 
 fn bench(c: &mut Criterion) {
     let mut knn_service = KnnService::new(Distance::Euclidean, DIM, 50);
-    let index_file =PathBuf::from_str("data/index-10k.hnsw").expect("path");
+    let index_file = PathBuf::from_str(index_file_path).expect("path");
+    if !index_file.exists() {
+        panic!("File {}", index_file_path)
+    }
     knn_service.load_index(INDEX_ID, index_file).expect("Error loading index");
     let mut labels: Vec<(i32, i64)> = vec!();
-    let data = fs::read_to_string("data/input-ids-15k.csv").expect("Unable to read file");
+    let data = fs::read_to_string(ids_file_path).expect("Unable to read file");
     for line in data.trim().split('\n') {
         for i in line.split(' ') {
             let v = i.parse().unwrap();

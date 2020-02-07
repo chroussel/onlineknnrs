@@ -2,7 +2,8 @@ use crate::native;
 use std::path::Path;
 use std::ffi::CString;
 use std::collections::HashMap;
-use ndarray::Array1;
+use ndarray::{Array1, ArrayView1, ArrayView};
+use crate::native::get_item;
 
 #[derive(Debug)]
 pub enum Error {
@@ -58,18 +59,25 @@ impl KnnService {
         Ok(())
     }
 
+    fn get_item(&self, index: u64, label: usize) -> Option<ArrayView1<f32>> {
+        let ptr = unsafe {native::get_item(index, label)};
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { ArrayView::from_shape_ptr(self.dim as usize, ptr) })
+        }
+    }
+
     fn compute_user_vector(&self, labels: &Vec<(i32, i64)>) -> Result<Array1<f32>, Error> {
         let mut count = 0;
         let mut user_vector = Array1::<f32>::zeros(self.dim as usize);
-        let mut data_vector = Array1::<f32>::zeros(self.dim as usize);
 
         for (index_id, label) in labels {
             self.indices_by_id.get(&index_id).into_iter().for_each(
                 |index| {
-                    let found = unsafe { native::get_data_pointer_by_label(*index, *label as usize, data_vector.as_mut_ptr()) };
-                    if found {
+                    if let Some(data_vector) = self.get_item(*index, *label as usize) {
                         count += 1;
-                        user_vector += &data_vector;
+                        user_vector += &data_vector
                     }
                 }
             );
@@ -77,7 +85,7 @@ impl KnnService {
         if count == 0 {
             return Err(Error::NoVectorFound);
         }
-        user_vector /= (count as f32);
+        user_vector /= count as f32;
         return Ok(user_vector);
     }
 
@@ -112,7 +120,6 @@ impl Drop for KnnService {
 #[cfg(test)]
 mod tests {
     use crate::knnservice::*;
-    use test::Bencher;
 
     #[test]
     fn simple_test() {

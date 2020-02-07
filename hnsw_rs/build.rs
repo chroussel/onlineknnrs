@@ -1,12 +1,12 @@
 extern crate cc;
 
-use std::env;
-use std::path::PathBuf;
-
 fn main() {
     cc::Build::new()
         .cpp(true)
+        .include("includes")
         .file("src_cpp/knn_api.cpp")
+        .flag_if_supported("-std=c++11")
+        .flag_if_supported("-msse4")
         .flag_if_supported("-mavx")
         .flag_if_supported("/arch:avx")
         .flag_if_supported("-Wno-unused-parameter")
