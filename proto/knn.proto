@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+package knn.api;
+
+message KnnRequest {
+    string country = 1; //a key used for sharding (partition the knn indexes among multiple nodes). Country may be a bit misleading
+    int32 index_id = 2; //sub-partitioning inside one node is controlled by this parameter. We have one small world network per partition. Possible partitioning can be by country-partnerId.
+    repeated ProductInput user_events = 3;
+    int32 result_count = 4; //amount of products to be returned.
+    bool allow_zero_user_embedding = 5;
+    int32 number_last_days = 6; //used to control events used to compute user embedding when using weighted average.
+    float half_life = 7; //defined in days. used to control exponential decay when computing user embedding  as a weighted sum of events embeddings.
+    int32 number_last_events = 8; //used to control events used to compute user embedding when using model.
+    PublisherId publisher_id = 9;
+    bool nolog = 10;
+}
+
+message PublisherId {
+    sfixed64 id = 1;
+}
+
+message ProductInput {
+    int32 partner_id = 1;
+    sfixed64 product_id = 2; //hashed external id
+    int64 timestamp = 3; //defined in seconds
+    int32 event_type = 4; //see Criteo.Recommendation.Common.Api.EventType
+}
+
+message KnnResponse {
+    repeated Product products = 1;
+    int32 user_events_used_count = 2;
+    float squared_l2_query_norm = 3;
+}
+
+message Product {
+    sfixed64 product_id = 1;
+    float score = 2;
+    float dotproduct = 3;
+    float squared_l2_norm = 4;
+}
+
+//A knn service instance running on one node will work on a limited set of partitions (misnamed countries)
+message CountryInfo {
+    string name = 1;
+    string indices_path = 2; // hdfs indices path for this partition.
+    string extra_items_path = 3; // hdfs indices path for non recommendable products for this partition.
+    int64 reco_embeddings_count = 4; //amount of embeddings of recommendable products stored for this partition.
+    int64 non_reco_embeddings_count = 5; //amount of embeddings of non-recommendable products stored for this partition.
+    int64 total_embeddings_count = 6; //amount of embeddings of products products stored for this partition.
+    string model_path = 7; //tensorflow model path.
+}
+
+message AvailableCountriesResponse {
+    repeated CountryInfo countries = 1; //partitions served by this instance.
+}
+
+message IndicesRequest {
+    string country = 1;
+}
+
+message IndexInfo {
+    int32 partner_id = 1; //represents a partition. Name may be misleading as there is no particular logic related to partner.
+    int64 embeddings_count = 2; //amount of embeddings of recommendable products
+}
+
+message IndicesResponse {
+    repeated IndexInfo indices = 1;
+}
+
+//Asks for a bunch of product hashed external ids where embeddings exist for a given country/index
+message IndexedProductsRequest {
+    string country = 1;
+    int32 index_id = 2;
+    int32 max_count = 3;
+}
+
+message IndexedProductsResponse {
+    repeated sfixed64 product_id = 1;
+}
+
+service Knn {
+    rpc Search(KnnRequest) returns (KnnResponse) {}
+    rpc MultiSearch(KnnRequest) returns (KnnResponse) {}
+    rpc GetAvailableCountries(google.protobuf.Empty) returns (AvailableCountriesResponse) {}
+    rpc GetIndicesForCountry(IndicesRequest) returns (IndicesResponse) {}
+    rpc GetIndexedProducts(IndexedProductsRequest) returns (IndexedProductsResponse) {}
+}
