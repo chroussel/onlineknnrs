@@ -1,17 +1,4 @@
-[package]
-name = "onlineknnrs"
-version = "0.1.0"
-authors = ["Charles Roussel <c.roussel@criteo.com>"]
-edition = "2018"
-
-[[bin]]
-name = "onlineknn-server"
-path = "src/server.rs"
-
-[dependencies]
-tonic = "0.1"
-prost = "0.6"
-tokio = { version = "0.2", features = ["full"] }
-
-[build-dependencies]
-tonic-build = "0.1.0"
+[workspace]
+members=[
+    "service"
+]
