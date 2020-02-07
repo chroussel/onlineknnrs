@@ -1,0 +1,24 @@
+[package]
+name = "hnsw_rs"
+version = "0.1.0"
+authors = ["Charles Roussel <c.roussel@criteo.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[build]
+rustflags = ["-C", "target-cpu=native"]
+
+[dependencies]
+libc= "0.2"
+ndarray  = "0.13"
+
+[build-dependencies]
+cc = "1.0"
+bindgen = "0.53"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "bench"
+harness = false
