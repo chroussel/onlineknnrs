@@ -2,6 +2,9 @@
 #include <tuple>
 #include "hnswlib.h"
 
+#include <stdexcept>
+#include <string>
+
 #ifndef KNN_JNI_HNSW_INDEX_H
 #define KNN_JNI_HNSW_INDEX_H
 
@@ -15,7 +18,7 @@ enum Distance {
 template<typename dist_t, typename data_t=float>
 class Index {
 public:
-    Index(hnswlib::SpaceInterface<float> *space, const int dim, bool normalize = false) :
+    Index(hnswlib::SpaceInterface<float> *space, const int32_t dim, bool normalize = false) :
         space(space), dim(dim), normalize(normalize), data_size(dim * sizeof(float)) {
         appr_alg = NULL;
     }
