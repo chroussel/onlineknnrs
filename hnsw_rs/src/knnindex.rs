@@ -1,9 +1,8 @@
 use crate::native;
 use failure::Error;
 use std::path::Path;
-use crate::knnservice::Distance;
 use std::ffi::CString;
-use ndarray::{ArrayView, ArrayView1, Array1, ArrayViewMut1};
+use ndarray::{Array1, ArrayViewMut1};
 use std::fmt::Display;
 
 pub enum Distance {
@@ -28,12 +27,12 @@ pub struct KnnIndex {
 }
 
 impl KnnIndex {
-    pub fn new(distance: Distance, dim: i32, ef_search: usize, maxSize: usize) -> Result<KnnIndex, Error> {
-        const ef_construction: usize= 50;
+    pub fn new(distance: Distance, dim: i32, ef_search: usize, max_size: usize) -> Result<KnnIndex, Error> {
+        const EF_CONSTRUCTION: usize= 50;
         const M: usize= 50;
-        const seed: usize= 42;
+        const SEED: usize= 42;
         let index = unsafe { native::create_index(distance.to_native(), dim) };
-        unsafe {native::init_new_index(index, maxSize, M, ef_construction, seed)};
+        unsafe {native::init_new_index(index, max_size, M, EF_CONSTRUCTION, SEED)};
         unsafe { native::set_ef(index, ef_search) }
         Ok(KnnIndex { index, dim })
     }
@@ -43,6 +42,7 @@ impl KnnIndex {
         let path_str = path_to_index.as_ref().as_os_str().to_str().ok_or(format_err!("{} is invalid", path_to_index))?;
         let cs = CString::new(path_str).unwrap();
         unsafe { native::load_index(index, cs.as_ptr()) };
+        unsafe { native::set_ef(index, ef_search) }
         Ok(KnnIndex { index, dim })
     }
 

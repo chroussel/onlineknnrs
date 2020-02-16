@@ -1,6 +1,7 @@
 extern crate cc;
 
 fn main() {
+
     cc::Build::new()
         .cpp(true)
         .include("includes")
@@ -13,7 +14,6 @@ fn main() {
         .flag_if_supported("-Wno-unused-parameter")
         .flag_if_supported("-Wno-deprecated")
         .compile("knnservice");
-
     /*let bindings = bindgen::Builder::default()
         .rustfmt_bindings(true)
         .header("src_cpp/knn_api.h")

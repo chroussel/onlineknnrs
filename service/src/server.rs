@@ -11,31 +11,31 @@ pub struct KnnController {}
 impl Knn for KnnController {
     async fn search(
         &self,
-        request: Request<KnnRequest>,
+        _request: Request<KnnRequest>,
     ) -> Result<Response<KnnResponse>, Status> {
         unimplemented!()
     }
     async fn multi_search(
         &self,
-        request: Request<KnnRequest>,
+        _request: Request<KnnRequest>,
     ) -> Result<Response<KnnResponse>, Status> {
         unimplemented!()
     }
     async fn get_available_countries(
         &self,
-        request: Request<()>,
+        _request: Request<()>,
     ) -> Result<Response<AvailableCountriesResponse>, Status> {
         unimplemented!()
     }
     async fn get_indices_for_country(
         &self,
-        request: Request<IndicesRequest>,
+        _request: Request<IndicesRequest>,
     ) -> Result<Response<IndicesResponse>, Status> {
         unimplemented!()
     }
     async fn get_indexed_products(
         &self,
-        request: Request<IndexedProductsRequest>,
+        _request: Request<IndexedProductsRequest>,
     ) -> Result<Response<IndexedProductsResponse>, Status> {
         unimplemented!()
     }

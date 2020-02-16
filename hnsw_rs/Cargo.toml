@@ -3,9 +3,7 @@ name = "hnsw_rs"
 version = "0.1.0"
 authors = ["Charles Roussel <c.roussel@criteo.com>"]
 edition = "2018"
-
-[build]
-rustflags = ["-C", "target-cpu=native"]
+build = "build.rs"
 
 [dependencies]
 libc= "0.2"
