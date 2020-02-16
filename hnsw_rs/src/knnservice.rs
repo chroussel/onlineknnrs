@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use ndarray::{Array1, ArrayView1, ArrayView};
 use crate::knnindex::*;
 use std::fmt::Display;
+use crate::error::KnnError;
 
 pub enum Model {
     Average
@@ -17,18 +18,6 @@ pub struct KnnService {
     indices_by_id: HashMap<i32, native::rust_hnsw_index_t>,
 }
 
-#[derive(Fail, Debug)]
-pub enum KnnError {
-    #[fail(display = "Invalid path.")]
-    InvalidPath,
-    #[fail(display = "Index for id {} is not found.", _0)]
-    IndexNotFound(i32),
-    #[fail(display = "No vector has been found.")]
-    NoVectorFound,
-    #[fail(display = "An unknown error has occurred.")]
-    UnknownError,
-}
-
 impl KnnService {
     pub fn new(distance: Distance, dim: i32, ef_search: usize) -> Self {
         KnnService {
@@ -39,7 +28,7 @@ impl KnnService {
         }
     }
 
-    pub fn load_index<P: AsRef<Path> + Display>(&mut self, index_id: i32, path_to_index: P) -> Result<(), KnnError> {
+    pub fn load_index<P: AsRef<Path>>(&mut self, index_id: i32, path_to_index: P) -> Result<(), KnnError> {
         let index = unsafe { native::create_index(self.distance.to_native(), self.dim) };
         let path_str = path_to_index.as_ref().as_os_str().to_str().ok_or(KnnError::InvalidPath)?;
         let cs = CString::new(path_str).unwrap();
