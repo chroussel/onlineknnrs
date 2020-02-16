@@ -6,6 +6,7 @@ use criterion::{Criterion, ParameterizedBenchmark};
 use criterion::black_box;
 
 use hnsw_rs::knnservice::*;
+use hnsw_rs::knnindex::*;
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::str::FromStr;
