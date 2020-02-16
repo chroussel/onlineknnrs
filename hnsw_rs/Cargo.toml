@@ -10,6 +10,7 @@ rustflags = ["-C", "target-cpu=native"]
 [dependencies]
 libc= "0.2"
 ndarray  = "0.13"
+failure = "0.1"
 
 [build-dependencies]
 cc = "1.0"

@@ -48,7 +48,7 @@ size_t query(rust_hnsw_index_t index, float *vector, size_t *items, float *dista
     return cast(index)->knnQuery(vector, items, distances, k);
 }
 
-void add_item(rust_hnsw_index_t index, float * vector, size_t id) {
+void add_item(rust_hnsw_index_t index, float *vector, size_t id) {
     return cast(index)->addItem(vector, id);
 }
 

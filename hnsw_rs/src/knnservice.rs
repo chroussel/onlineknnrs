@@ -23,7 +23,7 @@ pub enum Model {
 }
 
 impl Distance {
-    fn to_native(&self) -> i32 {
+    pub fn to_native(&self) -> i32 {
         match self {
             Distance::Euclidean => { return native::Distance_Euclidian; }
             Distance::Angular => { return native::Distance_Angular; }
@@ -104,6 +104,8 @@ impl KnnService {
             .get(&query_index)
             .and_then(|index| {
                 let nb_result = unsafe { native::query(*index, user_vector.as_mut_ptr(), items.as_mut_ptr(), distances.as_mut_ptr(), k) };
+                unsafe {items.set_len(nb_result)};
+                unsafe {distances.set_len(nb_result)};
                 Some(items.into_iter().take(nb_result).map(|i| i as i64).zip(distances).collect())
             }).ok_or(Error::IndexNotFound(query_index))
     }
