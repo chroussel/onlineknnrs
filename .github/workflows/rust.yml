@@ -13,14 +13,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: actions-rs/cargo@v1
+    - name: cache
+      env:
+        cache-name: cache-cargo
+      uses: actions/cache@v1
+      with:
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}
+        path: ~/.cargo        
+    - name: build
+      uses: actions-rs/cargo@v1
       with:
         command: build
         args: --release --all-features
-    - uses: actions-rs/cargo@v1
+    - name: test
+      uses: actions-rs/cargo@v1
       with:
         command: test
         args: --release --all-features
-    - uses: actions-rs/cargo@v1
+    - name: benchmark
+      uses: actions-rs/cargo@v1
       with:
         command: bench
