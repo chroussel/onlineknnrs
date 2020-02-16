@@ -4,32 +4,11 @@ use std::ffi::CString;
 use std::collections::HashMap;
 use ndarray::{Array1, ArrayView1, ArrayView};
 use crate::native::get_item;
-
-#[derive(Debug)]
-pub enum Error {
-    InvalidPath,
-    IndexNotFound(i32),
-    NoVectorFound,
-}
-
-pub enum Distance {
-    Euclidean,
-    Angular,
-    InnerProduct,
-}
+use failure::Error;
+use crate::knnindex::{Distance, Model};
 
 pub enum Model {
     Average
-}
-
-impl Distance {
-    pub fn to_native(&self) -> i32 {
-        match self {
-            Distance::Euclidean => { return native::Distance_Euclidian; }
-            Distance::Angular => { return native::Distance_Angular; }
-            Distance::InnerProduct => { return native::Distance_InnerProduct; }
-        }
-    }
 }
 
 pub struct KnnService {
@@ -122,6 +101,7 @@ impl Drop for KnnService {
 #[cfg(test)]
 mod tests {
     use crate::knnservice::*;
+    use crate::knnindex::Distance;
 
     #[test]
     fn simple_test() {

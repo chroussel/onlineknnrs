@@ -6,6 +6,22 @@ use std::ffi::CString;
 use ndarray::{ArrayView, ArrayView1, Array1, ArrayViewMut1};
 use std::fmt::Display;
 
+pub enum Distance {
+    Euclidean,
+    Angular,
+    InnerProduct,
+}
+
+impl Distance {
+    pub fn to_native(&self) -> i32 {
+        match self {
+            Distance::Euclidean => { return native::Distance_Euclidian; }
+            Distance::Angular => { return native::Distance_Angular; }
+            Distance::InnerProduct => { return native::Distance_InnerProduct; }
+        }
+    }
+}
+
 pub struct KnnIndex {
     index: native::rust_hnsw_index_t,
     dim: i32,
@@ -68,7 +84,6 @@ impl Drop for KnnIndex {
 #[cfg(test)]
 mod tests {
     use crate::knnindex::*;
-    use crate::knnservice::Distance;
     use ndarray::*;
 
     #[test]
