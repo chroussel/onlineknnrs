@@ -9,6 +9,12 @@ on:
     - master
 
 jobs:
+  clippy_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - run: rustup component add clippy
+      
   build_and_test:
     runs-on: ubuntu-latest
     steps:
@@ -19,7 +25,11 @@ jobs:
       uses: actions/cache@v1
       with:
         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}
-        path: ~/.cargo        
+        path: ~/.cargo
+    - run: rustup component add clippy
+    - uses: actions-rs/clippy-check@v1
+      with:
+        args: --all-features
     - name: build
       uses: actions-rs/cargo@v1
       with:
