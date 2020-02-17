@@ -8,6 +8,7 @@ build = "build.rs"
 [[bin]]
 name = "onlineknn-server"
 path = "src/server.rs"
+bench = false
 
 [dependencies]
 tonic = "0.1"

@@ -5,6 +5,9 @@ authors = ["Charles Roussel <c.roussel@criteo.com>"]
 edition = "2018"
 build = "build.rs"
 
+[lib]
+bench = false
+
 [dependencies]
 libc= "0.2"
 ndarray  = "0.13"
