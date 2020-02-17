@@ -35,13 +35,9 @@ jobs:
       with:
         command: test
         args: --release --all-features
-  run_benchmark:
-    name: run benchmark
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - name: run benchmark
-        uses: matchai/criterion-compare-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: benchmark
+      uses: actions-rs/cargo@v1
+      with:
+        command: bench
+        args: --all-features
         
