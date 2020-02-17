@@ -36,7 +36,7 @@ jobs:
         command: test
         args: --release --all-features
     - name: benchmark
-      run: cargo bench --release --all-features | tee output.txt
+      run: cargo bench --all-features | tee output.txt
     - name: Store benchmark result
       uses: rhysd/github-action-benchmark@v1
       with:
