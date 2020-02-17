@@ -38,7 +38,7 @@ fn bench(c: &mut Criterion) {
 
         b.iter(||{
             cursor+=1;
-            let data = labels.iter().skip(cursor * NB_EMBEDDINGS).take(NB_EMBEDDINGS).map(|t|t.clone()).collect();
+            let data: Vec<(i32,i64)> = labels.iter().skip(cursor * NB_EMBEDDINGS).take(NB_EMBEDDINGS).map(|t|t.clone()).collect();
             let r = knn_service.get_closest_items(&data, INDEX_ID, 20, Model::Average);
             black_box(r)
         })
