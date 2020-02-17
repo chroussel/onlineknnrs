@@ -37,13 +37,4 @@ jobs:
         args: --release --all-features
     - name: benchmark
       run: cargo bench --all-features | tee output.txt
-    - name: Store benchmark result
-      uses: rhysd/github-action-benchmark@v1
-      with:
-        name: Knn Benchmarks
-        tool: 'cargo'
-        output-file-path: output.txt
-        github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-        auto-push: true
-        alert-threshold: '150%'
         
