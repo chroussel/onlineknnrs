@@ -3,13 +3,13 @@ pub const Distance_Angular: Distance = 2;
 pub const Distance_InnerProduct: Distance = 3;
 
 pub type Distance = i32;
-pub type rust_hnsw_index_t = u64;
+pub type RustHnswIndexT = u64;
 
 extern "C" {
-    pub fn create_index(distance: Distance, dim: ::std::os::raw::c_int) -> rust_hnsw_index_t;
+    pub fn create_index(distance: Distance, dim: ::std::os::raw::c_int) -> RustHnswIndexT;
 
     pub fn init_new_index(
-        index: rust_hnsw_index_t,
+        index: RustHnswIndexT,
         max_elements: usize,
         M: usize,
         efConstruction: usize,
@@ -17,28 +17,28 @@ extern "C" {
     );
 
 
-    pub fn save_index(index: rust_hnsw_index_t, path_to_index: *const ::std::os::raw::c_char);
+    pub fn save_index(index: RustHnswIndexT, path_to_index: *const ::std::os::raw::c_char);
 
 
-    pub fn load_index(index: rust_hnsw_index_t, path_to_index: *const ::std::os::raw::c_char);
+    pub fn load_index(index: RustHnswIndexT, path_to_index: *const ::std::os::raw::c_char);
 
 
-    pub fn set_ef(index: rust_hnsw_index_t, ef: usize);
+    pub fn set_ef(index: RustHnswIndexT, ef: usize);
 
 
-    pub fn cur_element_count(index: rust_hnsw_index_t) -> usize;
+    pub fn cur_element_count(index: RustHnswIndexT) -> usize;
 
 
-    pub fn get_item(index: rust_hnsw_index_t, label: usize) -> *mut f32;
+    pub fn get_item(index: RustHnswIndexT, label: usize) -> *mut f32;
 
     pub fn query(
-        index: rust_hnsw_index_t,
+        index: RustHnswIndexT,
         vector: *mut f32,
         items: *mut usize,
         distances: *mut f32,
         k: usize,
     ) -> usize;
 
-    pub fn add_item(index: rust_hnsw_index_t, vector: *mut f32, label: usize);
-    pub fn destroy(index: rust_hnsw_index_t);
+    pub fn add_item(index: RustHnswIndexT, vector: *mut f32, label: usize);
+    pub fn destroy(index: RustHnswIndexT);
 }

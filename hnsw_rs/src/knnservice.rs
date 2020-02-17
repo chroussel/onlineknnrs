@@ -4,7 +4,6 @@ use std::ffi::CString;
 use std::collections::HashMap;
 use ndarray::{Array1, ArrayView1, ArrayView};
 use crate::knnindex::*;
-use std::fmt::Display;
 use crate::error::KnnError;
 
 pub enum Model {
@@ -15,7 +14,7 @@ pub struct KnnService {
     distance: Distance,
     dim: i32,
     ef_search: usize,
-    indices_by_id: HashMap<i32, native::rust_hnsw_index_t>,
+    indices_by_id: HashMap<i32, native::RustHnswIndexT>,
 }
 
 impl KnnService {
@@ -47,7 +46,7 @@ impl KnnService {
         }
     }
 
-    fn compute_user_vector(&self, labels: &Vec<(i32, i64)>) -> Result<Array1<f32>, KnnError> {
+    fn compute_user_vector(&self, labels: &[(i32, i64)]) -> Result<Array1<f32>, KnnError> {
         let mut count = 0;
         let mut user_vector = Array1::<f32>::zeros(self.dim as usize);
 
@@ -65,10 +64,10 @@ impl KnnService {
             return Err(KnnError::NoVectorFound);
         }
         user_vector /= count as f32;
-        return Ok(user_vector);
+        Ok(user_vector)
     }
 
-    pub fn get_closest_items(&self, labels: &Vec<(i32, i64)>, query_index: i32, k: usize, model: Model) -> Result<Vec<(i64, f32)>, KnnError> {
+    pub fn get_closest_items(&self, labels: &[(i32, i64)], query_index: i32, k: usize, model: Model) -> Result<Vec<(i64, f32)>, KnnError> {
         let mut user_vector = match model {
             Model::Average => self.compute_user_vector(&labels)?,
         };

@@ -3,7 +3,6 @@ use crate::error::KnnError;
 use std::path::Path;
 use std::ffi::CString;
 use ndarray::{Array1, ArrayViewMut1};
-use std::fmt::Display;
 
 pub enum Distance {
     Euclidean,
@@ -14,15 +13,15 @@ pub enum Distance {
 impl Distance {
     pub fn to_native(&self) -> i32 {
         match self {
-            Distance::Euclidean => { return native::Distance_Euclidian; }
-            Distance::Angular => { return native::Distance_Angular; }
-            Distance::InnerProduct => { return native::Distance_InnerProduct; }
+            Distance::Euclidean => { native::Distance_Euclidian }
+            Distance::Angular => { native::Distance_Angular }
+            Distance::InnerProduct => { native::Distance_InnerProduct }
         }
     }
 }
 
 pub struct KnnIndex {
-    index: native::rust_hnsw_index_t,
+    index: native::RustHnswIndexT,
     dim: i32,
 }
 
