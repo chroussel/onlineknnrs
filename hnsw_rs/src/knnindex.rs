@@ -4,6 +4,8 @@ use std::path::Path;
 use std::ffi::CString;
 use ndarray::{Array1, ArrayViewMut1};
 
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Distance {
     Euclidean,
     Angular,
@@ -49,7 +51,7 @@ impl KnnIndex {
         unsafe { native::cur_element_count(self.index) }
     }
 
-    pub fn get_item(&self, label: u64) -> Option<ArrayViewMut1<f32>> {
+    pub fn get_item(&self, label: i64) -> Option<ArrayViewMut1<f32>> {
         let pointer = unsafe { native::get_item(self.index, label as usize) };
         if pointer.is_null() {
             None
@@ -58,11 +60,11 @@ impl KnnIndex {
         }
     }
 
-    pub fn add_item(&self, label: u64, mut embedding: Array1<f32>) {
+    pub fn add_item(&self, label: i64, mut embedding: Array1<f32>) {
         unsafe { native::add_item(self.index, embedding.as_mut_ptr(), label as usize) }
     }
 
-    pub fn query(&self, mut embedding: ArrayViewMut1<f32>, k: usize) -> Vec<(u64, f32)> {
+    pub fn query(&self, mut embedding: ArrayViewMut1<f32>, k: usize) -> Vec<(i64, f32)> {
         let mut items = vec!();
         items.reserve(k);
         let mut distances = vec!();
@@ -70,7 +72,7 @@ impl KnnIndex {
         let nb_result = unsafe { native::query(self.index, embedding.as_mut_ptr(), items.as_mut_ptr(), distances.as_mut_ptr(), k) };
         unsafe {items.set_len(nb_result)};
         unsafe {distances.set_len(nb_result)};
-        items.into_iter().map(|u| u as u64).zip(distances).collect()
+        items.into_iter().map(|u| u as i64).zip(distances).collect()
     }
 }
 
