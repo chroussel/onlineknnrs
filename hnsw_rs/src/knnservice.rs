@@ -1,8 +1,11 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use ndarray::{Array1, ArrayViewMut1};
-use crate::knnindex::*;
+use crate::hnswindex::*;
 use crate::error::KnnError;
+use crate::Distance;
+use crate::knnindex::{EmbeddingRegistry, KnnIndex};
+use crate::loader::Loader;
 
 pub enum Model {
     Average
@@ -12,7 +15,7 @@ pub struct KnnService {
     distance: Distance,
     dim: i32,
     ef_search: usize,
-    indices_by_id: HashMap<i32, KnnIndex>,
+    embedding_registry: EmbeddingRegistry
 }
 
 impl KnnService {
@@ -21,14 +24,24 @@ impl KnnService {
             distance,
             dim,
             ef_search,
-            indices_by_id: HashMap::new(),
+            embedding_registry: EmbeddingRegistry::new(dim)
         }
     }
 
-    pub fn load_index<P: AsRef<Path>>(&mut self, index_id: i32, path_to_index: P) -> Result<(), KnnError> {
-        let index = KnnIndex::load(self.distance, self.dim, self.ef_search, path_to_index)?;
-        self.indices_by_id.insert(index_id, index);
+    pub fn load<P: AsRef<Path>>(&mut self, indices_path: P, extra_item_path: P) -> Result<(), KnnError> {
+        info!("KnnService: Starting load from {} and {}", indices_path.as_ref(), extra_item_path.as_ref());
+        Loader::load_index_folder(indices_path, self.add_index)?;
+        Loader::load_extra_item_folder(extra_item_path, self.add_extra_item)?;
+        info!("KnnService: Load done");
         Ok(())
+    }
+
+    fn add_index(&mut self, index_id: i32, path: PathBuf) -> Result<(), KnnError> {
+
+    }
+
+    fn add_extra_item(&mut self, index_id: i32, label: i64, embedding: Vec<f32> ) -> Result<(), KnnError> {
+
     }
 
     fn get_item(&self, index: i32, label: i64) -> Option<ArrayViewMut1<f32>> {
@@ -68,7 +81,8 @@ impl KnnService {
 #[cfg(test)]
 mod tests {
     use crate::knnservice::*;
-    use crate::knnindex::Distance;
+    use crate::hnswindex::Distance;
+    use crate::Distance;
 
     #[test]
     fn simple_test() {

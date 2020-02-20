@@ -1,104 +1,91 @@
-use crate::native;
-use crate::error::KnnError;
-use std::path::Path;
-use std::ffi::CString;
-use ndarray::{Array1, ArrayViewMut1};
-
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum Distance {
-    Euclidean,
-    Angular,
-    InnerProduct,
-}
-
-impl Distance {
-    pub fn to_native(&self) -> i32 {
-        match self {
-            Distance::Euclidean => { native::Distance_Euclidian }
-            Distance::Angular => { native::Distance_Angular }
-            Distance::InnerProduct => { native::Distance_InnerProduct }
-        }
-    }
-}
+use std::collections::HashMap;
+use ndarray::*;
+use crate::hnswindex::HnswIndex;
+use std::collections::BinaryHeap;
+use failure::_core::cmp::Ordering;
 
 pub struct KnnIndex {
-    index: native::RustHnswIndexT,
-    dim: i32,
+    hnsw_indexes: Vec<HnswIndex>,
+    extra_items: HashMap<i64, Array1<f32>>
+}
+
+struct IndexResult(i64, f32);
+
+impl Ord for IndexResult {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let r = self.1.cmp(&other.1);
+        if r == Ordering::Equal {
+            self.0.cmp(&other.0)
+        } else {
+            r
+        }
+    }
 }
 
 impl KnnIndex {
-    pub fn new(distance: Distance, dim: i32, ef_search: usize, max_size: usize) -> Result<KnnIndex, KnnError> {
-        const EF_CONSTRUCTION: usize= 50;
-        const M: usize= 50;
-        const SEED: usize= 42;
-        let index = unsafe { native::create_index(distance.to_native(), dim) };
-        unsafe {native::init_new_index(index, max_size, M, EF_CONSTRUCTION, SEED)};
-        unsafe { native::set_ef(index, ef_search) }
-        Ok(KnnIndex { index, dim })
+    pub fn new() -> KnnIndex {
+        KnnIndex {
+            hnsw_indexes: vec!(),
+            extra_items: HashMap::new()
+        }
+    }
+    pub fn get_item(&self, label: i64) -> Option<ArrayView1<f32>> {
+        self.extra_items.get(&label)
+            .map(|e| e.view())
+            .or_else(|| self.get_item_from_indices(label))
     }
 
-    pub fn load<P: AsRef<Path>>(distance: Distance, dim: i32, ef_search: usize, path_to_index: P) -> Result<KnnIndex, KnnError> {
-        let index = unsafe { native::create_index(distance.to_native(), dim) };
-        let path_str = path_to_index.as_ref().as_os_str().to_str().ok_or(KnnError::InvalidPath)?;
-        let cs = CString::new(path_str).unwrap();
-        unsafe { native::load_index(index, cs.as_ptr()) };
-        unsafe { native::set_ef(index, ef_search) }
-        Ok(KnnIndex { index, dim })
+    pub fn get_item_from_indices(&self, label: i64) -> Option<ArrayView1<f32>> {
+        self.hnsw_indexes.iter().find_map(|index| index.get_item(label))
     }
 
-    pub fn size(&self) -> usize {
-        unsafe { native::cur_element_count(self.index) }
+    pub fn search(&self, embedding: ArrayViewMut1<f32>, nb_result: usize) -> Vec<(i64, f32)> {
+        let mut init_heap = BinaryHeap::with_capacity(nb_result);
+        self.hnsw_indexes.iter()
+            .map(|index| index.query(embedding, nb_result))
+            .fold(init_heap, |mut heap, item| {
+                item.into_iter().for_each(|(label, distance)| {
+                    if heap.len() < nb_result {
+                        heap.push(IndexResult(label, distance));
+                    } else {
+                        heap.pop();
+                    }
+                });
+                heap
+            })
+            .into_iter()
+            .map(|IndexResult(label, distance)| (label, distance))
+            .collect()
     }
+}
 
-    pub fn get_item(&self, label: i64) -> Option<ArrayViewMut1<f32>> {
-        let pointer = unsafe { native::get_item(self.index, label as usize) };
-        if pointer.is_null() {
-            None
-        } else {
-            Some(unsafe{ArrayViewMut1::from_shape_ptr(self.dim as usize, pointer)})
+pub struct EmbeddingRegistry {
+    dim: i32,
+    pub embeddings: HashMap<i32, KnnIndex>
+}
+
+impl EmbeddingRegistry {
+    pub fn new(dim: i32) -> EmbeddingRegistry {
+        EmbeddingRegistry {
+            dim,
+            embeddings:HashMap::new()
         }
     }
 
-    pub fn add_item(&self, label: i64, mut embedding: Array1<f32>) {
-        unsafe { native::add_item(self.index, embedding.as_mut_ptr(), label as usize) }
+    pub fn fetch_item(&self, index_id: i32, label: i64) -> Option<ArrayView1<f32>> {
+        self.embeddings.get(&index_id)
+            .and_then(|index| index.get_item(label))
     }
 
-    pub fn query(&self, mut embedding: ArrayViewMut1<f32>, k: usize) -> Vec<(i64, f32)> {
-        let mut items = vec!();
-        items.reserve(k);
-        let mut distances = vec!();
-        distances.reserve(k);
-        let nb_result = unsafe { native::query(self.index, embedding.as_mut_ptr(), items.as_mut_ptr(), distances.as_mut_ptr(), k) };
-        unsafe {items.set_len(nb_result)};
-        unsafe {distances.set_len(nb_result)};
-        items.into_iter().map(|u| u as i64).zip(distances).collect()
+    pub fn has_item(&self, index_id: i32, label: i64) -> bool {
+        self.fetch_item(index, label).is_some()
     }
 }
 
-impl Drop for KnnIndex {
-    fn drop(&mut self) {
-        unsafe { native::destroy(self.index) };
-    }
+pub struct Model {
+    half_life: f32,
+    nb_last_days: i32,
+    nb_last_events: i32,
+    return_details: bool
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::knnindex::*;
-    use ndarray::*;
-
-    #[test]
-    fn create_and_query() {
-        let a = KnnIndex::new(Distance::Euclidean, 3, 10, 100).unwrap();
-
-        for i in 0..50 {
-            let mut e = arr1(&[i as f32, (i+1) as f32, (i+2) as f32]);
-            a.add_item(i, e);
-        }
-
-        let mut query = arr1(&[20_f32, 21.0, 22.0]);
-        let res = a.query(query.view_mut(), 5);
-        assert_eq!(res.len(), 5);
-        dbg!(res);
-    }
-}
