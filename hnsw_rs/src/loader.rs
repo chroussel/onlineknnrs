@@ -48,7 +48,7 @@ impl Loader {
             let partner_id = product_partner.get_int(1)?;
             let product = product_partner.get_long(0)?;
             let embedding_list: &List = record.get_list(1)?;
-            let mut embedding = Array1::<f32>::zeros(embedding_list.len());
+            let mut embedding = Array1::<f32>::zeros(embedding_list.len() + 1);
             for i in 0..embedding_list.len() {
                 embedding[i] = embedding_list.get_float(i)?;
             }

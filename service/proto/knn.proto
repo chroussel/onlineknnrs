@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 import "google/protobuf/empty.proto";
-package knn.api;
+package com.criteo.recommendation.knn.api;
 
 message KnnRequest {
     string country = 1; //a key used for sharding (partition the knn indexes among multiple nodes). Country may be a bit misleading
