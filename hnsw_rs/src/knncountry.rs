@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use crate::knnservice::KnnService;
 use std::path::{Path, PathBuf};
 use failure::Error;
-use std::fs::File;
-use std::io::Read;
 use std::fs;
 use crate::{Distance, IndexConfig};
 
@@ -12,9 +10,9 @@ pub struct KnnByCountry {
     countries: HashMap<String, KnnService>
 }
 
-const dimensionFilename: &str = "_dimension";
-const metricFilename: &str = "_metrics";
-const defaultEfSearch: usize = 50;
+const DIMENSION_FILENAME: &str = "_dimension";
+const METRIC_FILENAME: &str = "_metrics";
+const DEFAULT_EF_SEARCH: usize = 50;
 
 impl KnnByCountry {
     pub fn load<P: AsRef<Path>>(&mut self, country: &str, indices_path: P, extra_item_path: P) -> Result<(), Error> {
@@ -23,14 +21,14 @@ impl KnnByCountry {
         let index_country_root: PathBuf = PathBuf::from(indices_path).join(format!("country={}", country));
         let extra_country_root: PathBuf = PathBuf::from(extra_item_path).join(format!("country={}/non-recommendable", country));
 
-        let dimensionPath = index_country_root.clone().join(dimensionFilename);
-        let metricPath = index_country_root.clone().join(metricFilename);
+        let dimension_path = index_country_root.clone().join(DIMENSION_FILENAME);
+        let metric_path = index_country_root.clone().join(METRIC_FILENAME);
 
-        let dimensionValue: usize = fs::read_to_string(dimensionPath)?.parse()?;
-        let metricValue:Distance = fs::read_to_string(metricPath)?.parse()?;
+        let dimension_value: usize = fs::read_to_string(dimension_path)?.parse()?;
+        let metric_value:Distance = fs::read_to_string(metric_path)?.parse()?;
 
-        let mut knn_service = KnnService::new(IndexConfig::new(metricValue, dimensionValue, defaultEfSearch));
-        knn_service.load(index_country_root, extra_country_root);
+        let mut knn_service = KnnService::new(IndexConfig::new(metric_value, dimension_value, DEFAULT_EF_SEARCH));
+        knn_service.load(index_country_root, extra_country_root)?;
         self.countries.insert(country.to_string(), knn_service);
         Ok(())
     }
@@ -40,6 +38,6 @@ impl KnnByCountry {
     }
 
     pub fn get_countries(&self) -> Vec<String> {
-        self.countries.keys().map(|s| s.clone()).collect()
+        self.countries.keys().cloned().collect()
     }
 }

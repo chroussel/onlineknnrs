@@ -67,7 +67,7 @@ impl FromStr for Distance {
     type Err = KnnError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match (value.to_lowercase().as_ref()) {
+        match value.to_lowercase().as_ref() {
             "euclidean" => Ok(Distance::Euclidean),
             "angular" => Ok(Distance::Angular),
             "dotproduct" => Ok(Distance::InnerProduct),

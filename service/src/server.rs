@@ -8,8 +8,7 @@ use knn::{*, knn_server::*};
 mod knn;
 
 use env_logger::Env;
-use hnsw_rs::knnservice::{KnnService, Model};
-use hnsw_rs::*;
+use hnsw_rs::knnservice::Model;
 use failure::Error;
 use std::path::{Path, PathBuf};
 use clap::{App, Arg};
@@ -32,16 +31,18 @@ impl KnnController {
     where
         P: AsRef<Path>,
     {
-        let index_path = index_path.as_ref();
+        let indices_path = index_path.as_ref();
         let extra_item_path = extra_item_path.as_ref();
         self.countries.clone().into_iter().map(move |c| {
             info!("Loading country {}", c);
-            let loadResult = self.knn_country.load(&c, index_path.clone(), extra_item_path.clone());
-            match &loadResult {
+            let load_result = self.knn_country.load(&c,
+                                                    indices_path,
+                                                    extra_item_path);
+            match &load_result {
                 Ok(()) => info!("Done for {}", c),
                 Err(e) => error!("error loading {}: {}", c, e.to_string())
             }
-            loadResult
+            load_result
         }).collect()
     }
 
@@ -66,10 +67,10 @@ impl Knn for KnnController {
     ) -> Result<Response<KnnResponse>, Status> {
         let request: KnnRequest = request.into_inner();
         debug!("Received request with country: {}", request.country);
-        if let Some(knnservice) = self.knn_country.get_service(&request.country) {
+        if let Some(knn_service) = self.knn_country.get_service(&request.country) {
 
             let events: Vec<(i32, i64)> = request.user_events.iter().map(|event| (event.partner_id, event.product_id)).collect();
-            let result = knnservice.get_closest_items(
+            let result = knn_service.get_closest_items(
                 &events,
                 request.index_id,
                 request.result_count as usize,
@@ -97,9 +98,9 @@ impl Knn for KnnController {
         _request: Request<()>,
     ) -> Result<Response<AvailableCountriesResponse>, Status> {
         let countries: Vec<CountryInfo> = self.knn_country.get_countries().into_iter().map(|c| {
-            let mut countryInfo = CountryInfo::default();
-            countryInfo.name = c;
-            countryInfo
+            let mut country_info = CountryInfo::default();
+            country_info.name = c;
+            country_info
         }).collect();
         Ok(Response::new(
             AvailableCountriesResponse {

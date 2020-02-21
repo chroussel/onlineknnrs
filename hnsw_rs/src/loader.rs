@@ -2,7 +2,6 @@ use parquet::file::reader::{FileReader, SerializedFileReader};
 use parquet::record::{ListAccessor, Row, List};
 use parquet::record::RowAccessor;
 use std::path::{Path, PathBuf};
-use crate::hnswindex::HnswIndex;
 use failure::Error;
 use std::fs;
 use std::convert::TryFrom;

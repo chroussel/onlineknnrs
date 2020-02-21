@@ -108,10 +108,3 @@ impl EmbeddingRegistry {
     }
 }
 
-pub struct Model {
-    half_life: f32,
-    nb_last_days: i32,
-    nb_last_events: i32,
-    return_details: bool
-}
-
