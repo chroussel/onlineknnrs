@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn create_and_query() {
-        let config = IndexConfig::new(Distance::Euclidean, 3, 10, 100);
+        let config = IndexConfig::new(Distance::Euclidean, 3, 10);
         let a = HnswIndex::new(config, 100).unwrap();
 
         for i in 0..50 {
@@ -81,7 +81,7 @@ mod tests {
         }
 
         let mut query = arr1(&[20_f32, 21.0, 22.0]);
-        let res = a.query(query.view_mut(), 5);
+        let res = a.query(&mut query.view_mut(), 5);
         assert_eq!(res.len(), 5);
         dbg!(res);
     }

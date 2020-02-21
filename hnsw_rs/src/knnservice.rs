@@ -78,12 +78,12 @@ impl KnnService {
 #[cfg(test)]
 mod tests {
     use crate::knnservice::*;
-    use crate::hnswindex::Distance;
     use crate::{Distance, IndexConfig};
 
     #[test]
     fn simple_test() {
-        let a = KnnService::new(IndexConfig::new(IndexConfigDistance::Euclidean, 100, 10));
+        let config = IndexConfig::new(Distance::Euclidean, 100, 10);
+        let a = KnnService::new(config);
 
     }
 }
