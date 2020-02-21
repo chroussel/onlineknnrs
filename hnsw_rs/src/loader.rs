@@ -4,11 +4,12 @@ use parquet::record::RowAccessor;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use crate::hnswindex::HnswIndex;
-use crate::error::KnnError;
+use failure::Error;
 use std::fs;
-use crate::Distance;
 use std::convert::TryFrom;
 use std::io::Write;
+use ndarray::Array1;
+use tempdir::TempDir;
 
 struct PartnerChunk {
     partner_id: i32,
@@ -18,31 +19,31 @@ struct PartnerChunk {
 pub enum Loader {}
 
 impl Loader {
-    pub fn load_extra_item_folder<P, F>(path: P, add_non_searchable_items: F) -> Result<(), KnnError>
+    pub fn load_extra_item_folder<P, F>(path: P, mut add_non_searchable_items: F) -> Result<(), Error>
         where
             P: AsRef<Path>,
-            F: FnMut(i32, i64, Vec<f32>)
+            F: FnMut(i32, i64, Array1<f32>)
     {
-        info!("Loading extra items from {}", path.display());
+        info!("Loading extra items from {}", path.as_ref().display());
         let index_paths = fs::read_dir(path)?;
 
         for path in index_paths {
             let entry: fs::DirEntry = path?;
-            if entry.file_name().into_string()?.starts_with("_") {
+            if entry.file_name().into_string().unwrap().starts_with("_") {
                 continue;
             }
             info!("Loading path: {:?}", entry);
-            Loader::parse_extra_items(&entry.path(), &add_non_searchable_items);
+            Loader::parse_extra_items(&entry.path(), &mut add_non_searchable_items);
         }
         Ok(())
     }
 
-    fn parse_extra_items<P, F>(path: P, add_non_searchable_items: F) -> Result<(), KnnError>
+    fn parse_extra_items<P, F>(path: P, mut add_non_searchable_items: F) -> Result<(), Error>
     where
         P: AsRef<Path>,
-        F: FnMut(i32, i64, Vec<f32>) -> Result<(), KnnError>
+        F: FnMut(i32, i64, Array1<f32>)
     {
-        let reader = SerializedFileReader::try_from(path.to_str()?)?;
+        let reader = SerializedFileReader::try_from(path.as_ref())?;
         let mut iter = reader.get_row_iter(None)?;
         while let Some(record) = iter.next() {
             let record: Row = record;
@@ -50,26 +51,24 @@ impl Loader {
             let partner_id = product_partner.get_int(1)?;
             let product = product_partner.get_long(0)?;
             let embedding_list: &List = record.get_list(1)?;
-            let mut embedding = vec![];
-            embedding.reserve_exact(embedding_list.len());
+            let mut embedding = Array1::<f32>::zeros(embedding_list.len());
             for i in 0..embedding_list.len() {
-                embedding.push(embedding_list.get_float(i)?);
+                embedding[i] = embedding_list.get_float(i)?;
             }
-            add_non_searchable_items(partner_id, product, embedding)?;
+            add_non_searchable_items(partner_id, product, embedding);
         }
         Ok(())
     }
 
-    pub fn load_index_folder<P>(path: P, add_index: F) -> Result<(), KnnError>
+    pub fn load_index_folder<P, F>(path: P, mut add_index: F) -> Result<(), Error>
     where
         P: AsRef<Path>,
-        F: FnMut(i32, PathBuf) ->  Result<(), KnnError>
+        F: FnMut(i32, PathBuf) ->  Result<(), Error>
     {
         let tempdir = TempDir::new("knn_index").unwrap();
         let path = path.as_ref();
         info!("Loading knn index from {}", path.display());
         let index_paths = fs::read_dir(path).expect("working path");
-        let mut indexes_list = vec![];
         for path in index_paths {
             let entry: fs::DirEntry = path.expect("dir entry");
             if entry.file_name().into_string().unwrap().starts_with("_") {
@@ -79,14 +78,14 @@ impl Loader {
 
             let partner_chunks = Loader::parse_index_file(entry.path(), tempdir.path());
             for pc in partner_chunks {
-                add_index(pc.partner_id, pc.data_path)
+                add_index(pc.partner_id, pc.data_path);
             }
         }
         info!("Load done");
         Ok(())
     }
 
-    fn parse_index_file<P: AsRef<Path>>(path: P, tempdir: P) -> Vec<PartnerChunk> {
+    fn parse_index_file<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, tempdir: P2) -> Vec<PartnerChunk> {
         let path = path.as_ref();
         let tempdir = tempdir.as_ref();
         let reader = SerializedFileReader::try_from(path.to_str().unwrap()).unwrap();

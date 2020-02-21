@@ -1,5 +1,4 @@
-use crate::{native, Distance};
-use crate::error::KnnError;
+use crate::{native, Distance, IndexConfig, KnnError};
 use std::path::Path;
 use std::ffi::CString;
 use ndarray::*;
@@ -7,27 +6,27 @@ use std::collections::HashMap;
 
 pub struct HnswIndex {
     index: native::RustHnswIndexT,
-    dim: i32
+    config: IndexConfig
 }
 
 impl HnswIndex {
-    pub fn new(distance: Distance, dim: i32, ef_search: usize, max_size: usize) -> Result<HnswIndex, KnnError> {
+    pub fn new(config: IndexConfig, max_size: usize) -> Result<HnswIndex, KnnError> {
         const EF_CONSTRUCTION: usize= 50;
         const M: usize= 50;
         const SEED: usize= 42;
-        let index = unsafe { native::create_index(distance.to_native(), dim) };
+        let index = unsafe { native::create_index(config.distance.to_native(), config.dim as i32) };
         unsafe {native::init_new_index(index, max_size, M, EF_CONSTRUCTION, SEED)};
-        unsafe { native::set_ef(index, ef_search) }
-        Ok(HnswIndex { index, dim })
+        unsafe { native::set_ef(index, config.ef_search) }
+        Ok(HnswIndex { index, config })
     }
 
-    pub fn load<P: AsRef<Path>>(distance: Distance, dim: i32, ef_search: usize, path_to_index: P) -> Result<HnswIndex, KnnError> {
-        let index = unsafe { native::create_index(distance.to_native(), dim) };
+    pub fn load<P: AsRef<Path>>(config: IndexConfig, path_to_index: P) -> Result<HnswIndex, KnnError> {
+        let index = unsafe { native::create_index(config.distance.to_native(), config.dim as i32) };
         let path_str = path_to_index.as_ref().as_os_str().to_str().ok_or(KnnError::InvalidPath)?;
         let cs = CString::new(path_str).unwrap();
         unsafe { native::load_index(index, cs.as_ptr()) };
-        unsafe { native::set_ef(index, ef_search) }
-        Ok(HnswIndex { index, dim })
+        unsafe { native::set_ef(index, config.ef_search) }
+        Ok(HnswIndex { index, config })
     }
 
     pub fn size(&self) -> usize {
@@ -39,7 +38,7 @@ impl HnswIndex {
         if pointer.is_null() {
             None
         } else {
-            Some(unsafe{ArrayView1::from_shape_ptr(self.dim as usize, pointer)})
+            Some(unsafe{ArrayView1::from_shape_ptr(self.config.dim as usize, pointer)})
         }
     }
 
@@ -47,7 +46,7 @@ impl HnswIndex {
         unsafe { native::add_item(self.index, embedding.as_mut_ptr(), label as usize) }
     }
 
-    pub fn query(&self, mut embedding: ArrayViewMut1<f32>, k: usize) -> Vec<(i64, f32)> {
+    pub fn query(&self, embedding: &mut ArrayViewMut1<f32>, k: usize) -> Vec<(i64, f32)> {
         let mut items = vec!();
         items.reserve(k);
         let mut distances = vec!();
@@ -67,13 +66,14 @@ impl Drop for HnswIndex {
 
 #[cfg(test)]
 mod tests {
-    use crate::HnswIndex::*;
     use ndarray::*;
-    use crate::Distance;
+    use crate::*;
+    use crate::hnswindex::HnswIndex;
 
     #[test]
     fn create_and_query() {
-        let a = HnswIndex::new(Distance::Euclidean, 3, 10, 100).unwrap();
+        let config = IndexConfig::new(Distance::Euclidean, 3, 10, 100);
+        let a = HnswIndex::new(config, 100).unwrap();
 
         for i in 0..50 {
             let mut e = arr1(&[i as f32, (i+1) as f32, (i+2) as f32]);

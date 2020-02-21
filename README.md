@@ -2,5 +2,5 @@
 
 # How to build
 
-* install rust on stable channel `rustup default stable`
+* install rust on nighlty channel `rustup default nighlty` (simd need nighlty)
 * add rustfmt: `rustup component add rustfmt`

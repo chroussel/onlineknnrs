@@ -3,19 +3,40 @@ use ndarray::*;
 use crate::hnswindex::HnswIndex;
 use std::collections::BinaryHeap;
 use failure::_core::cmp::Ordering;
+use std::path::Path;
+use crate::*;
+use failure::Error;
 
 pub struct KnnIndex {
+    config: IndexConfig,
     hnsw_indexes: Vec<HnswIndex>,
     extra_items: HashMap<i64, Array1<f32>>
 }
 
 struct IndexResult(i64, f32);
 
+impl Eq for IndexResult {}
+
+impl PartialEq for IndexResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0 && self.1.eq(&other.1)
+    }
+}
+
 impl Ord for IndexResult {
     fn cmp(&self, other: &Self) -> Ordering {
-        let r = self.1.cmp(&other.1);
-        if r == Ordering::Equal {
-            self.0.cmp(&other.0)
+        match self.partial_cmp(other) {
+            None => Ordering::Equal,
+            Some(r) => r,
+        }
+    }
+}
+
+impl PartialOrd for IndexResult {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let r = self.1.partial_cmp(&other.1);
+        if let Some(Ordering::Equal) = r {
+            self.0.partial_cmp(&other.0)
         } else {
             r
         }
@@ -23,12 +44,24 @@ impl Ord for IndexResult {
 }
 
 impl KnnIndex {
-    pub fn new() -> KnnIndex {
+    pub fn new(config: IndexConfig) -> KnnIndex {
         KnnIndex {
+            config,
             hnsw_indexes: vec!(),
             extra_items: HashMap::new()
         }
     }
+
+    pub fn add_index_from_path<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error>{
+        let wrapper = HnswIndex::load(self.config, path)?;
+        self.hnsw_indexes.push(wrapper);
+        Ok(())
+    }
+
+    pub fn add_extra_item(&mut self, label: i64, embedding: Array1<f32>) {
+        self.extra_items.insert(label, embedding);
+    }
+
     pub fn get_item(&self, label: i64) -> Option<ArrayView1<f32>> {
         self.extra_items.get(&label)
             .map(|e| e.view())
@@ -39,10 +72,10 @@ impl KnnIndex {
         self.hnsw_indexes.iter().find_map(|index| index.get_item(label))
     }
 
-    pub fn search(&self, embedding: ArrayViewMut1<f32>, nb_result: usize) -> Vec<(i64, f32)> {
+    pub fn search(&self, mut embedding: ArrayViewMut1<f32>, nb_result: usize) -> Vec<(i64, f32)> {
         let mut init_heap = BinaryHeap::with_capacity(nb_result);
         self.hnsw_indexes.iter()
-            .map(|index| index.query(embedding, nb_result))
+            .map(|index| index.query(&mut embedding, nb_result))
             .fold(init_heap, |mut heap, item| {
                 item.into_iter().for_each(|(label, distance)| {
                     if heap.len() < nb_result {
@@ -60,14 +93,12 @@ impl KnnIndex {
 }
 
 pub struct EmbeddingRegistry {
-    dim: i32,
     pub embeddings: HashMap<i32, KnnIndex>
 }
 
 impl EmbeddingRegistry {
-    pub fn new(dim: i32) -> EmbeddingRegistry {
+    pub fn new() -> EmbeddingRegistry {
         EmbeddingRegistry {
-            dim,
             embeddings:HashMap::new()
         }
     }
@@ -78,7 +109,7 @@ impl EmbeddingRegistry {
     }
 
     pub fn has_item(&self, index_id: i32, label: i64) -> bool {
-        self.fetch_item(index, label).is_some()
+        self.fetch_item(index_id, label).is_some()
     }
 }
 

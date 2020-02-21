@@ -1,80 +1,77 @@
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
-use ndarray::{Array1, ArrayViewMut1};
+use ndarray::{Array1, ArrayViewMut1, ArrayView1};
 use crate::hnswindex::*;
-use crate::error::KnnError;
-use crate::Distance;
+use crate::*;
 use crate::knnindex::{EmbeddingRegistry, KnnIndex};
 use crate::loader::Loader;
+use failure::Error;
 
 pub enum Model {
     Average
 }
 
 pub struct KnnService {
-    distance: Distance,
-    dim: i32,
-    ef_search: usize,
+    config: IndexConfig,
     embedding_registry: EmbeddingRegistry
 }
 
 impl KnnService {
-    pub fn new(distance: Distance, dim: i32, ef_search: usize) -> Self {
+    pub fn new(config: IndexConfig) -> Self {
         KnnService {
-            distance,
-            dim,
-            ef_search,
-            embedding_registry: EmbeddingRegistry::new(dim)
+            config,
+            embedding_registry: EmbeddingRegistry::new()
         }
     }
 
-    pub fn load<P: AsRef<Path>>(&mut self, indices_path: P, extra_item_path: P) -> Result<(), KnnError> {
-        info!("KnnService: Starting load from {} and {}", indices_path.as_ref(), extra_item_path.as_ref());
-        Loader::load_index_folder(indices_path, self.add_index)?;
-        Loader::load_extra_item_folder(extra_item_path, self.add_extra_item)?;
+    pub fn load<P: AsRef<Path>>(&mut self, indices_path: P, extra_item_path: P) -> Result<(), Error> {
+        info!("KnnService: Starting load from {} and {}", indices_path.as_ref().display(), extra_item_path.as_ref().display());
+        Loader::load_index_folder(indices_path, |index, path| self.add_index(index, path))?;
+        Loader::load_extra_item_folder(extra_item_path, |index_id, label, embedding| self.add_extra_item(index_id, label, embedding))?;
         info!("KnnService: Load done");
         Ok(())
     }
 
-    fn add_index(&mut self, index_id: i32, path: PathBuf) -> Result<(), KnnError> {
-
+    pub fn add_index(&mut self, index_id: i32, path: PathBuf) -> Result<(), Error> {
+        let config = self.config;
+        let index = self.embedding_registry.embeddings.entry(index_id)
+            .or_insert_with(move || KnnIndex::new(config));
+        index.add_index_from_path(path)
     }
 
-    fn add_extra_item(&mut self, index_id: i32, label: i64, embedding: Vec<f32> ) -> Result<(), KnnError> {
-
+    pub fn add_extra_item(&mut self, index_id: i32, label: i64, embedding: Array1<f32> ) {
+        let config = self.config;
+        let index = self.embedding_registry.embeddings.entry(index_id)
+            .or_insert_with(move || KnnIndex::new(config));
+        index.add_extra_item(label, embedding);
     }
 
-    fn get_item(&self, index: i32, label: i64) -> Option<ArrayViewMut1<f32>> {
-        self.indices_by_id.get(&index)
-            .and_then(|index| index.get_item(label))
-    }
-
-    fn compute_user_vector(&self, labels: &[(i32, i64)]) -> Result<Array1<f32>, KnnError> {
+    pub  fn compute_user_vector(&self, labels: &[(i32, i64)]) -> Result<Array1<f32>, Error> {
         let mut count = 0;
-        let mut user_vector = Array1::<f32>::zeros(self.dim as usize);
+        let mut user_vector = Array1::<f32>::zeros(self.config.dim);
 
         for &(index_id, label) in labels {
-            if let Some(data_vector) = self.get_item(index_id, label) {
+            if let Some(data_vector) = self.embedding_registry.fetch_item(index_id, label) {
                 count += 1;
                 user_vector += &data_vector
             }
         }
         if count == 0 {
-            return Err(KnnError::NoVectorFound);
+            return Err(KnnError::NoVectorFound.into());
         }
         user_vector /= count as f32;
         Ok(user_vector)
     }
 
-    pub fn get_closest_items(&self, labels: &[(i32, i64)], query_index: i32, k: usize, model: Model) -> Result<Vec<(i64, f32)>, KnnError> {
+    pub fn get_closest_items(&self, labels: &[(i32, i64)], query_index: i32, k: usize, model: Model) -> Result<Vec<(i64, f32)>, Error> {
         let mut user_vector = match model {
             Model::Average => self.compute_user_vector(labels)?,
         };
 
-        self.indices_by_id
+        self.embedding_registry.embeddings
             .get(&query_index)
-            .and_then(|index| Some(index.query(user_vector.view_mut(), k)))
-            .ok_or(KnnError::IndexNotFound(query_index))
+            .and_then(|index| Some(index.search(user_vector.view_mut(), k)))
+            .ok_or(KnnError::IndexNotFound(query_index).into())
     }
 }
 
@@ -82,11 +79,11 @@ impl KnnService {
 mod tests {
     use crate::knnservice::*;
     use crate::hnswindex::Distance;
-    use crate::Distance;
+    use crate::{Distance, IndexConfig};
 
     #[test]
     fn simple_test() {
-        let a = KnnService::new(Distance::Euclidean, 100, 10);
+        let a = KnnService::new(IndexConfig::new(IndexConfigDistance::Euclidean, 100, 10));
 
     }
 }
