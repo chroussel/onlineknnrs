@@ -2,7 +2,6 @@ use parquet::file::reader::{FileReader, SerializedFileReader};
 use parquet::record::{ListAccessor, Row, List};
 use parquet::record::RowAccessor;
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 use crate::hnswindex::HnswIndex;
 use failure::Error;
 use std::fs;
@@ -29,11 +28,11 @@ impl Loader {
 
         for path in index_paths {
             let entry: fs::DirEntry = path?;
-            if entry.file_name().into_string().unwrap().starts_with("_") {
+            if entry.file_name().into_string().unwrap().starts_with('_') {
                 continue;
             }
             info!("Loading path: {:?}", entry);
-            Loader::parse_extra_items(&entry.path(), &mut add_non_searchable_items);
+            Loader::parse_extra_items(&entry.path(), &mut add_non_searchable_items)?;
         }
         Ok(())
     }
@@ -44,9 +43,7 @@ impl Loader {
         F: FnMut(i32, i64, Array1<f32>)
     {
         let reader = SerializedFileReader::try_from(path.as_ref())?;
-        let mut iter = reader.get_row_iter(None)?;
-        while let Some(record) = iter.next() {
-            let record: Row = record;
+        for record in reader.get_row_iter(None)? {
             let product_partner: &Row = record.get_group(0)?;
             let partner_id = product_partner.get_int(1)?;
             let product = product_partner.get_long(0)?;
@@ -71,40 +68,39 @@ impl Loader {
         let index_paths = fs::read_dir(path).expect("working path");
         for path in index_paths {
             let entry: fs::DirEntry = path.expect("dir entry");
-            if entry.file_name().into_string().unwrap().starts_with("_") {
+            if entry.file_name().into_string().unwrap().starts_with('_') {
                 continue;
             }
-            info!("Loading path: {:?}", entry);
+            info!("Loading path: {}", entry.path().display());
 
-            let partner_chunks = Loader::parse_index_file(entry.path(), tempdir.path());
+            let partner_chunks = Loader::parse_index_file(entry.path(), tempdir.path())?;
             for pc in partner_chunks {
-                add_index(pc.partner_id, pc.data_path);
+                add_index(pc.partner_id, pc.data_path)?;
             }
         }
         info!("Load done");
         Ok(())
     }
 
-    fn parse_index_file<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, tempdir: P2) -> Vec<PartnerChunk> {
+    fn parse_index_file<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, tempdir: P2) -> Result<Vec<PartnerChunk>, Error> {
         let path = path.as_ref();
         let tempdir = tempdir.as_ref();
-        let reader = SerializedFileReader::try_from(path.to_str().unwrap()).unwrap();
+        let reader = SerializedFileReader::try_from(path.to_str().unwrap())?;
         let mut pcs = vec![];
-        let mut iter = reader.get_row_iter(None).unwrap();
-        while let Some(record) = iter.next() {
-            let partner_chunk = record.get_group(0).unwrap();
-            let partner = partner_chunk.get_int(0).unwrap();
-            let chunk = partner_chunk.get_int(1).unwrap();
-            let ba = record.get_bytes(1).unwrap();
+        for record in reader.get_row_iter(None)? {
+            let partner_chunk = record.get_group(0)?;
+            let partner = partner_chunk.get_int(0)?;
+            let chunk = partner_chunk.get_int(1)?;
+            let ba = record.get_bytes(1)?;
             let data_path = tempdir.join(format!("chunk-{}-{}", partner, chunk));
-            let mut file = fs::File::create(&data_path).unwrap();
-            file.write_all(ba.data()).unwrap();
+            let mut file = fs::File::create(&data_path)?;
+            file.write_all(ba.data())?;
             let pc = PartnerChunk {
                 partner_id: partner,
                 data_path,
             };
             pcs.push(pc);
         }
-        pcs
+        Ok(pcs)
     }
 }

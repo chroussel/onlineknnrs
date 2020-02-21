@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
-use ndarray::{Array1, ArrayViewMut1, ArrayView1};
-use crate::hnswindex::*;
+use ndarray::*;
 use crate::*;
 use crate::knnindex::{EmbeddingRegistry, KnnIndex};
 use crate::loader::Loader;
@@ -20,7 +18,7 @@ impl KnnService {
     pub fn new(config: IndexConfig) -> Self {
         KnnService {
             config,
-            embedding_registry: EmbeddingRegistry::new()
+            embedding_registry: EmbeddingRegistry::default()
         }
     }
 
@@ -70,8 +68,8 @@ impl KnnService {
 
         self.embedding_registry.embeddings
             .get(&query_index)
-            .and_then(|index| Some(index.search(user_vector.view_mut(), k)))
-            .ok_or(KnnError::IndexNotFound(query_index).into())
+            .map(|index| index.search(user_vector.view_mut(), k))
+            .ok_or_else(|| KnnError::IndexNotFound(query_index).into())
     }
 }
 

@@ -49,7 +49,7 @@ pub enum Distance {
 }
 
 impl Distance {
-    pub fn to_native(&self) -> i32 {
+    pub fn to_native(self) -> i32 {
         match self {
             Distance::Euclidean => { native::Distance_Euclidian }
             Distance::Angular => { native::Distance_Angular }

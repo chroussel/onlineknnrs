@@ -1,8 +1,13 @@
+#[macro_use] extern crate log;
+extern crate env_logger;
+
 use tonic::{transport::Server, Request, Response, Status};
 use knn::{*, knn_server::*};
 mod knn {
     tonic::include_proto!("knn.api");
 }
+use env_logger::Env;
+
 
 #[derive(Default)]
 pub struct KnnController {}
@@ -43,8 +48,9 @@ impl Knn for KnnController {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
+    env_logger::from_env(Env::default().default_filter_or("info")).init();
     let addr = "[::1]:8080".parse().unwrap();
-    println!("Starting server on {}", addr);
+    info!("Starting server on {}", addr);
     Server::builder()
         .add_service(KnnServer::new(KnnController::default()))
         .serve(addr)

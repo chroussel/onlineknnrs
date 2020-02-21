@@ -1,8 +1,7 @@
-use crate::{native, Distance, IndexConfig, KnnError};
+use crate::{native, IndexConfig, KnnError};
 use std::path::Path;
 use std::ffi::CString;
 use ndarray::*;
-use std::collections::HashMap;
 
 pub struct HnswIndex {
     index: native::RustHnswIndexT,

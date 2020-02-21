@@ -73,7 +73,7 @@ impl KnnIndex {
     }
 
     pub fn search(&self, mut embedding: ArrayViewMut1<f32>, nb_result: usize) -> Vec<(i64, f32)> {
-        let mut init_heap = BinaryHeap::with_capacity(nb_result);
+        let init_heap = BinaryHeap::with_capacity(nb_result);
         self.hnsw_indexes.iter()
             .map(|index| index.query(&mut embedding, nb_result))
             .fold(init_heap, |mut heap, item| {
@@ -92,17 +92,12 @@ impl KnnIndex {
     }
 }
 
+#[derive(Default)]
 pub struct EmbeddingRegistry {
     pub embeddings: HashMap<i32, KnnIndex>
 }
 
 impl EmbeddingRegistry {
-    pub fn new() -> EmbeddingRegistry {
-        EmbeddingRegistry {
-            embeddings:HashMap::new()
-        }
-    }
-
     pub fn fetch_item(&self, index_id: i32, label: i64) -> Option<ArrayView1<f32>> {
         self.embeddings.get(&index_id)
             .and_then(|index| index.get_item(label))
