@@ -19,6 +19,8 @@ env_logger = "0.7"
 hnsw_rs = { path="../hnsw_rs" }
 failure = "0.1"
 clap = "2.33"
+dipstick = "0.7"
+hdrhistogram = "6.0"
 
 [build-dependencies]
 tonic-build = "0.1.0"
