@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::knnservice::KnnService;
 use std::path::{Path, PathBuf};
-use failure::Error;
+use failure::{Error, ResultExt};
 use std::fs;
 use crate::{Distance, IndexConfig};
 
@@ -24,8 +24,8 @@ impl KnnByCountry {
         let dimension_path = index_country_root.clone().join(DIMENSION_FILENAME);
         let metric_path = index_country_root.clone().join(METRIC_FILENAME);
 
-        let dimension_value: usize = fs::read_to_string(dimension_path)?.parse()?;
-        let metric_value:Distance = fs::read_to_string(metric_path)?.parse()?;
+        let dimension_value: usize = fs::read_to_string(&dimension_path).context(format!("Reading {}", dimension_path.display()))?.parse()?;
+        let metric_value:Distance = fs::read_to_string(&metric_path).context(format!("Reading {}", metric_path.display()))?.parse()?;
 
         let mut knn_service = KnnService::new(IndexConfig::new(metric_value, dimension_value, DEFAULT_EF_SEARCH));
         knn_service.load(index_country_root, extra_country_root)?;

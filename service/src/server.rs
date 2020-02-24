@@ -22,6 +22,7 @@ struct ResultArgs {
     port: u16,
     index_path: PathBuf,
     extra_item_path: PathBuf,
+    countries: Vec<String>
 }
 
 fn parse_args() -> Result<ResultArgs, Error> {
@@ -29,14 +30,17 @@ fn parse_args() -> Result<ResultArgs, Error> {
         .arg(Arg::with_name("port").short("p").long("port").value_name("PORT").takes_value(true).required(true))
         .arg(Arg::with_name("index_path").short("i").long("index_path").value_name("PATH").takes_value(true).required(true))
         .arg(Arg::with_name("extra_path").short("e").long("extra_path").value_name("PATH").takes_value(true).required(true))
+        .arg(Arg::with_name("country").short("c").long("country").value_delimiter(",").multiple(true).value_names(&["COUNTRY1","COUNTRY2"]).required(true).takes_value(true))
         .get_matches();
 
     let port: u16 = matches.value_of("port").unwrap().parse()?;
     let index_path: PathBuf = PathBuf::from(matches.value_of("index_path").unwrap());
     let extra_item_path: PathBuf = PathBuf::from(matches.value_of("extra_path").unwrap());
+    let countries: Vec<String> = matches.values_of("country").unwrap().map(|s| s.to_owned()).collect();
 
     Ok(ResultArgs {
         port,
+        countries,
         index_path,
         extra_item_path
     })
@@ -52,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let result_args = parse_args()?;
     let addr = format!("[::1]:{}", result_args.port).parse().unwrap();
     info!("initializing server");
-    let mut controller = KnnController::new(vec!(String::from("FR")), app_metrics);
+    let mut controller = KnnController::new(result_args.countries, app_metrics);
     controller.load(&result_args.index_path, &result_args.extra_item_path)?;
 
     info!("Starting server on {}", addr);
