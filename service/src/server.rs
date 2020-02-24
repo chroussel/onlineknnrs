@@ -30,7 +30,7 @@ fn parse_args() -> Result<ResultArgs, Error> {
         .arg(Arg::with_name("port").short("p").long("port").value_name("PORT").takes_value(true).required(true))
         .arg(Arg::with_name("index_path").short("i").long("index_path").value_name("PATH").takes_value(true).required(true))
         .arg(Arg::with_name("extra_path").short("e").long("extra_path").value_name("PATH").takes_value(true).required(true))
-        .arg(Arg::with_name("country").short("c").long("country").value_delimiter(",").multiple(true).value_names(&["COUNTRY1","COUNTRY2"]).required(true).takes_value(true))
+        .arg(Arg::with_name("country").short("c").long("country").value_delimiter(",").required(true).takes_value(true))
         .get_matches();
 
     let port: u16 = matches.value_of("port").unwrap().parse()?;
