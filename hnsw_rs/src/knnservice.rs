@@ -9,6 +9,11 @@ pub enum Model {
     Average
 }
 
+pub struct EmbeddingResult {
+    user_embedding: Array1<f32>,
+    user_event_used_count: usize
+}
+
 pub struct KnnService {
     config: IndexConfig,
     embedding_registry: EmbeddingRegistry
@@ -44,7 +49,7 @@ impl KnnService {
         index.add_extra_item(label, embedding);
     }
 
-    pub  fn compute_user_vector(&self, labels: &[(i32, i64)]) -> Result<Array1<f32>, Error> {
+    pub  fn compute_user_vector(&self, labels: &[(i32, i64)]) -> Result<EmbeddingResult, Error> {
         let mut count = 0;
         let mut user_vector = Array1::<f32>::zeros(self.config.dim);
 
@@ -54,11 +59,14 @@ impl KnnService {
                 user_vector += &data_vector
             }
         }
-        if count == 0 {
-            return Err(KnnError::NoVectorFound.into());
+        if count != 0 {
+            user_vector /= count as f32;
         }
-        user_vector /= count as f32;
-        Ok(user_vector)
+
+        Ok(EmbeddingResult {
+            user_embedding: user_vector,
+            user_event_used_count: count
+        })
     }
 
     pub fn get_closest_items(&self, labels: &[(i32, i64)], query_index: i32, k: usize, model: Model) -> Result<Vec<(i64, f32)>, Error> {
@@ -66,9 +74,12 @@ impl KnnService {
             Model::Average => self.compute_user_vector(labels)?,
         };
 
+        if user_vector.user_event_used_count == 0 {
+            return Ok(vec!())
+        }
         self.embedding_registry.embeddings
             .get(&query_index)
-            .map(|index| index.search(user_vector.view_mut(), k))
+            .map(|index| index.search(user_vector.user_embedding.view_mut(), k))
             .ok_or_else(|| KnnError::IndexNotFound(query_index).into())
     }
 }
