@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     app_metrics.flush_every(Duration::new(10, 0));
 
     let result_args = parse_args()?;
-    let addr = format!("[::1]:{}", result_args.port).parse().unwrap();
+    let addr = format!("0.0.0.0:{}", result_args.port).parse().unwrap();
     info!("initializing server");
     let mut controller = KnnController::new(result_args.countries, app_metrics);
     controller.load(&result_args.index_path, &result_args.extra_item_path)?;
