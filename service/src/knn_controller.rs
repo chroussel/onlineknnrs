@@ -38,7 +38,7 @@ impl LatencyHistogram {
     fn new(period: Duration) -> LatencyHistogram{
         LatencyHistogram {
             period,
-            histograms: Arc::new(RwLock::new(Histogram::<u64>::new_with_max(1_000_000_000, 4).unwrap()))
+            histograms: Arc::new(RwLock::new(Histogram::<u64>::new(4).unwrap()))
         }
     }
 
