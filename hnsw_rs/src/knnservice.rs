@@ -77,10 +77,10 @@ impl KnnService {
         if user_vector.user_event_used_count == 0 {
             return Ok(vec!())
         }
-        self.embedding_registry.embeddings
+        Ok(self.embedding_registry.embeddings
             .get(&query_index)
             .map(|index| index.search(user_vector.user_embedding.view_mut(), k))
-            .ok_or_else(|| KnnError::IndexNotFound(query_index).into())
+            .unwrap_or(vec!()))
     }
 }
 
