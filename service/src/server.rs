@@ -51,17 +51,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let settings = Settings::new()?;
     let app_metrics = AtomicBucket::new();
 
-    if let Some(graphiteSettings) = settings.graphite {
-        let graphite = Graphite::send_to(graphiteSettings.endpoint)
+    if let Some(graphite_settings) = settings.graphite {
+        info("Using graphite with endpoint {}", graphite_settings.endpoint);
+        let graphite = Graphite::send_to(graphite_settings.endpoint)
             .expect("Connected to graphite")
             .named(graphiteSettings.prefix);
         app_metrics.drain(graphite)
+    } else {
+        info("Graphite is disabled");
     }
     app_metrics.flush_every(Duration::new(60, 0));
 
     let result_args = parse_args()?;
     let addr = format!("0.0.0.0:{}", result_args.port).parse().unwrap();
-    info!("initializing server");
+    info!("Initializing server");
     let mut controller = KnnController::new(settings.country, app_metrics);
     controller.load(&result_args.index_path, &result_args.extra_item_path)?;
 
