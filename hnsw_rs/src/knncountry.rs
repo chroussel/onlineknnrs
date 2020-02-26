@@ -34,7 +34,7 @@ impl KnnByCountry {
     }
 
     pub fn get_service(&self, country: &str) -> Option<&KnnService> {
-        self.countries.get(country)
+        self.countries.get(country).or_else(|| self.countries.get("XX"))
     }
 
     pub fn get_countries(&self) -> Vec<String> {
