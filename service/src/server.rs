@@ -52,13 +52,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let app_metrics = AtomicBucket::new();
 
     if let Some(graphite_settings) = settings.graphite {
-        info("Using graphite with endpoint {}", graphite_settings.endpoint);
+        info!("Using graphite with endpoint {} and prefix {}", graphite_settings.endpoint, graphite_settings.prefix);
         let graphite = Graphite::send_to(graphite_settings.endpoint)
             .expect("Connected to graphite")
-            .named(graphiteSettings.prefix);
+            .named(graphite_settings.prefix);
         app_metrics.drain(graphite)
     } else {
-        info("Graphite is disabled");
+        info!("Graphite is disabled");
     }
     app_metrics.flush_every(Duration::new(60, 0));
 
