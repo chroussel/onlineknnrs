@@ -5,9 +5,13 @@ extern crate hnsw_rs;
 extern crate hdrhistogram;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
+extern crate metrics_runtime;
+extern crate metrics_core;
+
 mod settings;
 mod knn;
 mod knn_controller;
+mod metric_observer;
 
 use std::path::PathBuf;
 use failure::Error;

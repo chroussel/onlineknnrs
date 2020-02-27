@@ -5,63 +5,50 @@ use std::path::Path;
 use tonic::{Response, Request, Status};
 use hnsw_rs::knnservice::Model;
 use crate::knn::{*, knn_server::*};
-use dipstick::{AtomicBucket, InputScope, Observe, CancelHandle};
-use hdrhistogram::Histogram;
+use dipstick::{AtomicBucket, InputScope, CancelHandle};
 use std::time::{Duration, Instant};
 use std::sync::{Arc, RwLock};
+use metrics_runtime::{Receiver, Sink};
+use metrics_runtime::data::Histogram;
+use metrics_core::{Observer, Builder, Observe};
+use crate::metric_observer::GraphiteObserver;
 
 struct LatencyHistogram {
-    period: Duration,
-    histograms: Arc<RwLock<Histogram<u64>>>
+    sink: Sink,
+    histogram: Histogram,
 }
 
 struct TimeHandle<'a> {
-    now: std::time::Instant,
-    histo: &'a LatencyHistogram
+    start: u64,
+    sink: &'a Sink,
+    histo: &'a Histogram
 }
 
 impl<'a> TimeHandle<'a> {
-    fn start(histo: &LatencyHistogram) -> TimeHandle {
-        TimeHandle{
-            now: Instant::now(),
+    fn start(sink: &'a Sink, histo: &'a Histogram) -> TimeHandle<'a> {
+        let start = sink.now();
+        TimeHandle {
+            start,
+            sink,
             histo
         }
     }
 
     fn stop(self) {
-        let elapsed = self.now.elapsed().as_nanos();
-        self.histo.histograms.write().unwrap().record(elapsed as u64).unwrap();
+        let end = self.sink.now();
+        self.histo.record_timing(self.start, end);
     }
 }
 
 impl LatencyHistogram {
-    fn new(period: Duration) -> LatencyHistogram{
+    fn new(sink: Sink, histogram: Histogram) -> LatencyHistogram{
         LatencyHistogram {
-            period,
-            histograms: Arc::new(RwLock::new(Histogram::<u64>::new(4).unwrap()))
+            sink, histogram
         }
     }
 
-    fn observe(&self, metrics: AtomicBucket, name: &str, quantile: f64) {
-        let histo = self.histograms.clone();
-        metrics
-            .observe(metrics.gauge(&name), move |_now| histo.read().unwrap().value_at_quantile(quantile) as isize)
-            .on_flush();
-    }
-
-    fn observe_mean_max(&self, metrics: AtomicBucket) {
-        let histo = self.histograms.clone();
-        metrics
-            .observe(metrics.gauge("request.latency.mean"), move |_now| histo.read().unwrap().mean() as isize)
-            .on_flush();
-        let histo2 = self.histograms.clone();
-        metrics
-            .observe(metrics.gauge("request.latency.max"), move |_now| histo2.read().unwrap().max() as isize)
-            .on_flush();
-    }
-
     fn record(&self) -> TimeHandle {
-        TimeHandle::start(self)
+        TimeHandle::start(&self.sink, &self.histogram)
     }
 }
 
@@ -74,17 +61,17 @@ pub struct KnnController {
 }
 impl KnnController {
     pub fn new(countries: Vec<String>, metrics: AtomicBucket) -> KnnController {
-        let latency_histo = LatencyHistogram::new(Duration::from_secs(1));
-        latency_histo.observe(metrics.clone(),"request.latency.50", 0.50);
-        latency_histo.observe(metrics.clone(),"request.latency.90", 0.90);
-        latency_histo.observe(metrics.clone(),"request.latency.99", 0.99);
-        latency_histo.observe(metrics.clone(),"request.latency.999", 0.999);
-        latency_histo.observe_mean_max(metrics.clone());
+        let receiver = Receiver::builder().build().expect("Working receiver");
+        let mut observer = GraphiteObserver::new(metrics.clone(), vec!["50".into(), "90".into(), "99".into(), "999".into()]);
+        receiver.controller().observe(&mut observer);
+        let mut sink = receiver.sink();
+        let histo = sink.histogram("request.latency");
+        let latency_histo = LatencyHistogram::new(sink, histo);
         KnnController {
             metrics,
             latency_histo,
             countries: countries.into_iter().map(|c| c.to_uppercase()).collect(),
-            knn_country: KnnByCountry::default(),
+            knn_country: KnnByCountry::default()
         }
     }
 
