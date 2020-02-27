@@ -7,6 +7,7 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate metrics_runtime;
 extern crate metrics_core;
+extern crate clokwerk;
 
 mod settings;
 mod knn;
@@ -23,6 +24,10 @@ use tonic::transport::Server;
 use crate::knn::{*, knn_server::*};
 use std::time::Duration;
 use settings::Settings;
+use crate::metric_observer::GraphiteObserver;
+use metrics_runtime::Receiver;
+use clokwerk::{Scheduler, Interval};
+use metrics_core::Observe;
 
 
 struct ResultArgs {
@@ -60,16 +65,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let graphite = Graphite::send_to(graphite_settings.endpoint)
             .expect("Connected to graphite")
             .named(graphite_settings.prefix);
-        app_metrics.drain(graphite)
+        app_metrics.drain(graphite);
+        app_metrics.flush_every(Duration::new(60, 0));
     } else {
         info!("Graphite is disabled");
+        app_metrics.drain(Stream::to_stdout());
+        app_metrics.flush_every(Duration::new(5, 0));
     }
-    app_metrics.flush_every(Duration::new(60, 0));
 
+    let receiver = Receiver::builder()
+        .build()
+        .expect("Working receiver");
+    let mut observer = GraphiteObserver::new(app_metrics.clone());
+    let controller = receiver.controller();
+    controller.observe(&mut observer);
+    let mut scheduler = Scheduler::new();
+    scheduler.every(Interval::Seconds(10)).run(move || controller.observe(&mut observer));
+
+    let handler = scheduler.watch_thread(Duration::from_millis(100));
     let result_args = parse_args()?;
     let addr = format!("0.0.0.0:{}", result_args.port).parse().unwrap();
     info!("Initializing server");
-    let mut controller = KnnController::new(settings.country, app_metrics);
+    let mut controller = KnnController::new(settings.country, app_metrics, &receiver);
     controller.load(&result_args.index_path, &result_args.extra_item_path)?;
 
     info!("Starting server on {}", addr);
@@ -77,5 +94,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         .add_service(KnnServer::new(controller))
         .serve(addr)
         .await?;
+
+    handler.stop();
+    info!("Stopping the server");
     Ok(())
 }

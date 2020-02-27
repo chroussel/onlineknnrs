@@ -60,10 +60,7 @@ pub struct KnnController {
     latency_histo: LatencyHistogram
 }
 impl KnnController {
-    pub fn new(countries: Vec<String>, metrics: AtomicBucket) -> KnnController {
-        let receiver = Receiver::builder().build().expect("Working receiver");
-        let mut observer = GraphiteObserver::new(metrics.clone(), vec!["50".into(), "90".into(), "99".into(), "999".into()]);
-        receiver.controller().observe(&mut observer);
+    pub fn new(countries: Vec<String>, metrics: AtomicBucket, receiver: &Receiver) -> KnnController {
         let mut sink = receiver.sink();
         let histo = sink.histogram("request.latency");
         let latency_histo = LatencyHistogram::new(sink, histo);
