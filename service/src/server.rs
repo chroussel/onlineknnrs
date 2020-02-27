@@ -74,15 +74,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     }
 
     let receiver = Receiver::builder()
+        .histogram(Duration::from_secs(60), Duration::from_secs(1))
         .build()
         .expect("Working receiver");
     let mut observer = GraphiteObserver::new(app_metrics.clone());
     let controller = receiver.controller();
     controller.observe(&mut observer);
     let mut scheduler = Scheduler::new();
-    scheduler.every(Interval::Seconds(10    )).run(move || controller.observe(&mut observer));
+    scheduler.every(Interval::Seconds(10)).run(move || controller.observe(&mut observer));
 
-    let handler = scheduler.watch_thread(Duration::from_millis(100));
+    let handler = scheduler.watch_thread(Duration::from_millis(500));
     let result_args = parse_args()?;
     let addr = format!("0.0.0.0:{}", result_args.port).parse().unwrap();
     info!("Initializing server");
