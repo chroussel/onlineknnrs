@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let controller = receiver.controller();
     controller.observe(&mut observer);
     let mut scheduler = Scheduler::new();
-    scheduler.every(Interval::Seconds(10)).run(move || controller.observe(&mut observer));
+    scheduler.every(Interval::Seconds(10    )).run(move || controller.observe(&mut observer));
 
     let handler = scheduler.watch_thread(Duration::from_millis(100));
     let result_args = parse_args()?;
