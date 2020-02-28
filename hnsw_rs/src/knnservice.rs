@@ -80,7 +80,7 @@ impl KnnService {
         Ok(self.embedding_registry.embeddings
             .get(&query_index)
             .map(|index| index.search(user_vector.user_embedding.view_mut(), k))
-            .unwrap_or(vec!()))
+            .unwrap_or_else(|| vec!()))
     }
 }
 

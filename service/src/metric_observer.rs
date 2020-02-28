@@ -1,5 +1,5 @@
 use metrics_core::{Observer, Key};
-use dipstick::{AtomicBucket, InputScope, Flush};
+use dipstick::{AtomicBucket, InputScope};
 use hdrhistogram:: Histogram;
 
 pub struct GraphiteObserver {

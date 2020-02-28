@@ -5,13 +5,9 @@ use std::path::Path;
 use tonic::{Response, Request, Status};
 use hnsw_rs::knnservice::Model;
 use crate::knn::{*, knn_server::*};
-use dipstick::{AtomicBucket, InputScope, CancelHandle};
-use std::time::{Duration, Instant};
-use std::sync::{Arc, RwLock};
+use dipstick::{AtomicBucket, InputScope};
 use metrics_runtime::{Receiver, Sink};
 use metrics_runtime::data::Histogram;
-use metrics_core::{Observer, Builder, Observe};
-use crate::metric_observer::GraphiteObserver;
 
 struct LatencyHistogram {
     sink: Sink,
