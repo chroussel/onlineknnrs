@@ -54,10 +54,11 @@ pub struct KnnController {
     countries: HashSet<String>,
     knn_country:KnnByCountry,
     metrics: AtomicBucket,
-    latency_histo: LatencyHistogram
+    latency_histo: LatencyHistogram,
+    model: Model,
 }
 impl KnnController {
-    pub fn new(countries: Vec<String>, metrics: AtomicBucket, receiver: &Receiver) -> KnnController {
+    pub fn new(countries: Vec<String>, metrics: AtomicBucket, receiver: &Receiver, model: Model) -> KnnController {
         let mut sink = receiver.sink();
         let histo = sink.histogram("request.latency");
         let latency_histo = LatencyHistogram::new(sink, histo);
@@ -65,7 +66,8 @@ impl KnnController {
             metrics,
             latency_histo,
             countries: countries.into_iter().map(|c| c.to_uppercase()).collect(),
-            knn_country: KnnByCountry::default()
+            knn_country: KnnByCountry::default(),
+            model
         }
     }
 
@@ -122,7 +124,7 @@ impl Knn for KnnController {
                 &events,
                 request.index_id,
                 request.result_count as usize,
-                Model::Average);
+                self.model.clone());
 
             match result {
                 Ok(r) => {

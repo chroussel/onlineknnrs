@@ -16,6 +16,16 @@ pub enum Model {
     Tensorflow(String)
 }
 
+impl From<&str> for Model {
+    fn from(model_name: &str) -> Self {
+        let model_lower = model_name.to_lowercase();
+        match model_lower {
+            String("average") => Model::Average,
+            _ => Model::Tensorflow(model_lower)
+        }
+    }
+}
+
 impl Display for Model {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
