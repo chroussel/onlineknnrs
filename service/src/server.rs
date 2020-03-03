@@ -28,13 +28,13 @@ use crate::metric_observer::GraphiteObserver;
 use metrics_runtime::Receiver;
 use clokwerk::{Scheduler, Interval};
 use metrics_core::Observe;
-use shellexpand;
 
 
 struct ResultArgs {
     port: u16,
     index_path: PathBuf,
-    extra_item_path: PathBuf
+    extra_item_path: PathBuf,
+    models_path: Option<PathBuf>
 }
 
 fn parse_args() -> Result<ResultArgs, Error> {
@@ -42,16 +42,19 @@ fn parse_args() -> Result<ResultArgs, Error> {
         .arg(Arg::with_name("port").short("p").long("port").value_name("PORT").takes_value(true).required(true))
         .arg(Arg::with_name("index_path").short("i").long("index_path").value_name("PATH").takes_value(true).required(true))
         .arg(Arg::with_name("extra_path").short("e").long("extra_path").value_name("PATH").takes_value(true).required(true))
+        .arg(Arg::with_name("models_path").short("m").long("models_path").value_name("PATH").takes_value(true))
         .get_matches();
 
     let port: u16 = matches.value_of("port").unwrap().parse()?;
     let index_path: PathBuf = PathBuf::from(shellexpand::tilde(matches.value_of("index_path").unwrap()).to_string());
     let extra_item_path: PathBuf = PathBuf::from(shellexpand::tilde(matches.value_of("extra_path").unwrap()).to_string());
+    let models_path = matches.value_of("models_path").map(|m| PathBuf::from(shellexpand::tilde(m).to_string()));
 
     Ok(ResultArgs {
         port,
         index_path,
-        extra_item_path
+        extra_item_path,
+        models_path
     })
 }
 
@@ -89,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let addr = format!("0.0.0.0:{}", result_args.port).parse().unwrap();
     info!("Initializing server");
     let mut controller = KnnController::new(settings.country, app_metrics, &receiver);
-    controller.load(&result_args.index_path, &result_args.extra_item_path)?;
+    controller.load(&result_args.index_path, &result_args.extra_item_path, result_args.models_path.as_ref())?;
 
     info!("Starting server on {}", addr);
     Server::builder()

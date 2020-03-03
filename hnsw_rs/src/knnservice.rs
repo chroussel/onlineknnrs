@@ -20,10 +20,10 @@ impl Display for Model {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Model::Average => {
-                f.write_str("Average");
+                f.write_str("Average")?;
             },
             Model::Tensorflow(model_name) => {
-                f.write_str(model_name);
+                f.write_str(model_name)?;
             },
         }
         Ok(())

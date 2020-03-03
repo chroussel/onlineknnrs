@@ -15,9 +15,10 @@ const METRIC_FILENAME: &str = "_metrics";
 const DEFAULT_EF_SEARCH: usize = 50;
 
 impl KnnByCountry {
-    pub fn load<P: AsRef<Path>>(&mut self, country: &str, indices_path: P, extra_item_path: P) -> Result<(), Error> {
+    pub fn load<P: AsRef<Path>>(&mut self, country: &str, indices_path: P, extra_item_path: P, models_path: Option<P>) -> Result<(), Error> {
         let indices_path = indices_path.as_ref();
         let extra_item_path = extra_item_path.as_ref();
+        let models_path = models_path.map(|p| PathBuf::from(p.as_ref()).join(format!("country={}/_model.pb", country)));
         let index_country_root: PathBuf = PathBuf::from(indices_path).join(format!("country={}", country));
         let extra_country_root: PathBuf = PathBuf::from(extra_item_path).join(format!("country={}/non-recommendable", country));
 
@@ -25,10 +26,17 @@ impl KnnByCountry {
         let metric_path = index_country_root.clone().join(METRIC_FILENAME);
 
         let dimension_value: usize = fs::read_to_string(&dimension_path).context(format!("Error while reading {}", dimension_path.display()))?.parse()?;
-        let metric_value:Distance = fs::read_to_string(&metric_path).context(format!("Error while reading {}", metric_path.display()))?.parse()?;
+        let metric_value: Distance = fs::read_to_string(&metric_path).context(format!("Error while reading {}", metric_path.display()))?.parse()?;
 
         let mut knn_service = KnnService::new(IndexConfig::new(metric_value, dimension_value, DEFAULT_EF_SEARCH));
         knn_service.load(index_country_root, extra_country_root)?;
+        if let Some(models_root) = models_path {
+            if models_root.exists() {
+                knn_service.load_model(Model::Tensorflow("default".into()), models_root)?;
+            } else {
+                warn!("No model could be found in {}. Skipping", models_root.display());
+            }
+        }
         self.countries.insert(country.to_string(), knn_service);
         Ok(())
     }

@@ -69,17 +69,19 @@ impl KnnController {
         }
     }
 
-    pub fn load<P>(&mut self, index_path: P, extra_item_path: P) -> Result<(), Error>
+    pub fn load<P>(&mut self, index_path: P, extra_item_path: P, models_path: Option<P>) -> Result<(), Error>
         where
             P: AsRef<Path>,
     {
         let indices_path = index_path.as_ref();
         let extra_item_path = extra_item_path.as_ref();
+        let models_path = models_path.as_ref().map(|p| p.as_ref());
         self.countries.clone().into_iter().map(move |c| {
             info!("Loading country {}", c);
             let load_result = self.knn_country.load(&c,
                                                     indices_path,
-                                                    extra_item_path);
+                                                    extra_item_path,
+                                                    models_path);
             match &load_result {
                 Ok(()) => info!("Done for {}", c),
                 Err(e) => error!("error loading {}: {}", c, e.to_string())

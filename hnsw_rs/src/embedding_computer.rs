@@ -1,5 +1,4 @@
 use ndarray::Array1;
-use failure::Error;
 use crate::knnindex::EmbeddingRegistry;
 use crate::KnnError;
 

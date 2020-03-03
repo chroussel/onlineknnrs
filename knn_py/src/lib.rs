@@ -8,7 +8,6 @@ use hnsw_rs::*;
 use hnsw_rs::knnservice::Model;
 use env_logger::Env;
 use hnsw_rs::embedding_computer::UserEvent;
-use pyo3::types::PyAny;
 
 struct PyUserEvent(UserEvent);
 
@@ -36,7 +35,7 @@ impl KnnService {
     }
 
     fn load_country(&mut self, country: String, index_path: String, embedding_path: String) -> PyResult<()> {
-        self.knn_country.load(&country, index_path, embedding_path)
+        self.knn_country.load(&country, index_path, embedding_path, None)
             .map_err(|e| PyErr::new::<TypeError, _>(e.to_string()))
     }
 

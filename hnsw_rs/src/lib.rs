@@ -8,7 +8,6 @@ extern crate tensorflow;
 use failure::_core::str::FromStr;
 use crate::knnservice::Model;
 use tensorflow::Status;
-use std::error::Error;
 
 pub mod embedding_computer;
 pub mod knnservice;
