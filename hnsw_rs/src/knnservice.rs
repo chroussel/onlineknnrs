@@ -19,8 +19,8 @@ pub enum Model {
 impl From<&str> for Model {
     fn from(model_name: &str) -> Self {
         let model_lower = model_name.to_lowercase();
-        match model_lower {
-            String("average") => Model::Average,
+        match model_lower.as_ref() {
+            "average" => Model::Average,
             _ => Model::Tensorflow(model_lower)
         }
     }
