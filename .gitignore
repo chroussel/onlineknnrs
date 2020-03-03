@@ -11,3 +11,5 @@ obj/
 .idea
 .vscode
 .vs
+dist/
+.gradle

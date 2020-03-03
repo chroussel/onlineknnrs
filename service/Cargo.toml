@@ -27,7 +27,7 @@ serde = "1.0"
 metrics-runtime = "0.13"
 metrics-core = "0.5"
 clokwerk = "0.3"
-
+shellexpand = "2.0"
 
 [build-dependencies]
 tonic-build = "0.1.0"

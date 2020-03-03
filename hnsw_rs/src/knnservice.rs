@@ -4,26 +4,46 @@ use crate::*;
 use crate::knnindex::{EmbeddingRegistry, KnnIndex};
 use crate::loader::Loader;
 use failure::Error;
+use std::collections::HashMap;
+use crate::embedding_computer::{UserEmbeddingComputer, AverageComputer, EmbeddingResult, UserEvent};
+use std::fmt::Display;
+use failure::_core::fmt::Formatter;
+use crate::knn_tf::KnnTf;
 
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Model {
-    Average
+    Average,
+    Tensorflow(String)
 }
 
-pub struct EmbeddingResult {
-    user_embedding: Array1<f32>,
-    user_event_used_count: usize
+impl Display for Model {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Model::Average => {
+                f.write_str("Average");
+            },
+            Model::Tensorflow(model_name) => {
+                f.write_str(model_name);
+            },
+        }
+        Ok(())
+    }
 }
 
 pub struct KnnService {
     config: IndexConfig,
-    embedding_registry: EmbeddingRegistry
+    embedding_registry: EmbeddingRegistry,
+    models: HashMap<Model, Box<dyn UserEmbeddingComputer>>
 }
 
 impl KnnService {
     pub fn new(config: IndexConfig) -> Self {
+        let mut average: HashMap<Model, Box<dyn UserEmbeddingComputer>> = HashMap::new();
+        average.insert(Model::Average, Box::new(AverageComputer::default()));
         KnnService {
             config,
-            embedding_registry: EmbeddingRegistry::default()
+            embedding_registry: EmbeddingRegistry::new(config.dim),
+            models: average
         }
     }
 
@@ -32,6 +52,14 @@ impl KnnService {
         Loader::load_index_folder(indices_path, |index, path| self.add_index(index, path))?;
         Loader::load_extra_item_folder(extra_item_path, |index_id, label, embedding| self.add_extra_item(index_id, label, embedding))?;
         info!("KnnService: Load done");
+        Ok(())
+    }
+
+    pub fn load_model<P: AsRef<Path>>(&mut self, model: Model, tf_model: P) -> Result<(), Error > {
+        info!("KnnService: Starting model load from {}", tf_model.as_ref().display());
+        let tf_computer = KnnTf::load_model(tf_model)?;
+        self.models.insert(model, Box::new(tf_computer));
+        info!("KnnService: Model load done");
         Ok(())
     }
 
@@ -49,30 +77,17 @@ impl KnnService {
         index.add_extra_item(label, embedding);
     }
 
-    pub  fn compute_user_vector(&self, labels: &[(i32, i64)]) -> Result<EmbeddingResult, Error> {
-        let mut count = 0;
-        let mut user_vector = Array1::<f32>::zeros(self.config.dim);
-
-        for &(index_id, label) in labels {
-            if let Some(data_vector) = self.embedding_registry.fetch_item(index_id, label) {
-                count += 1;
-                user_vector += &data_vector
-            }
-        }
-        if count != 0 {
-            user_vector /= count as f32;
-        }
-
-        Ok(EmbeddingResult {
-            user_embedding: user_vector,
-            user_event_used_count: count
-        })
+    fn compute_user_vector(&self, model: Model, user_events: &[UserEvent]) -> Result<EmbeddingResult, Error> {
+        self.models.get(&model)
+            .ok_or(KnnError::ModelNotFound(model))
+            .and_then(|m|
+                m.compute_user_vector(&self.embedding_registry, user_events)
+            )
+            .map_err(From::from)
     }
 
-    pub fn get_closest_items(&self, labels: &[(i32, i64)], query_index: i32, k: usize, model: Model) -> Result<Vec<(i64, f32)>, Error> {
-        let mut user_vector = match model {
-            Model::Average => self.compute_user_vector(labels)?,
-        };
+    pub fn get_closest_items(&self, user_events: &[UserEvent], query_index: i32, k: usize, model: Model) -> Result<Vec<(i64, f32)>, Error> {
+        let mut user_vector = self.compute_user_vector(model, user_events)?;
 
         if user_vector.user_event_used_count == 0 {
             return Ok(vec!())

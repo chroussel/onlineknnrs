@@ -8,6 +8,7 @@ use crate::knn::{*, knn_server::*};
 use dipstick::{AtomicBucket, InputScope};
 use metrics_runtime::{Receiver, Sink};
 use metrics_runtime::data::Histogram;
+use hnsw_rs::embedding_computer::UserEvent;
 
 struct LatencyHistogram {
     sink: Sink,
@@ -112,7 +113,9 @@ impl Knn for KnnController {
         debug!("Received request with country: {}", request.country);
         if let Some(knn_service) = self.knn_country.get_service(&request.country) {
 
-            let events: Vec<(i32, i64)> = request.user_events.iter().map(|event| (event.partner_id, event.product_id)).collect();
+            let events: Vec<UserEvent> = request.user_events.iter().map(|event|
+                UserEvent { index: event.partner_id, label: event.product_id, timestamp: event.timestamp as u64, event_type: event.event_type }
+            ).collect();
             let result = knn_service.get_closest_items(
                 &events,
                 request.index_id,

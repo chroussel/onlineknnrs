@@ -28,6 +28,7 @@ use crate::metric_observer::GraphiteObserver;
 use metrics_runtime::Receiver;
 use clokwerk::{Scheduler, Interval};
 use metrics_core::Observe;
+use shellexpand;
 
 
 struct ResultArgs {
@@ -44,8 +45,8 @@ fn parse_args() -> Result<ResultArgs, Error> {
         .get_matches();
 
     let port: u16 = matches.value_of("port").unwrap().parse()?;
-    let index_path: PathBuf = PathBuf::from(matches.value_of("index_path").unwrap());
-    let extra_item_path: PathBuf = PathBuf::from(matches.value_of("extra_path").unwrap());
+    let index_path: PathBuf = PathBuf::from(shellexpand::tilde(matches.value_of("index_path").unwrap()).to_string());
+    let extra_item_path: PathBuf = PathBuf::from(shellexpand::tilde(matches.value_of("extra_path").unwrap()).to_string());
 
     Ok(ResultArgs {
         port,

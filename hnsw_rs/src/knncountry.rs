@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use crate::knnservice::KnnService;
+use crate::knnservice::{KnnService, Model};
 use std::path::{Path, PathBuf};
 use failure::{Error, ResultExt};
 use std::fs;
-use crate::{Distance, IndexConfig};
+use crate::{Distance, IndexConfig, KnnError};
 
 #[derive(Default)]
 pub struct KnnByCountry {
@@ -31,6 +31,11 @@ impl KnnByCountry {
         knn_service.load(index_country_root, extra_country_root)?;
         self.countries.insert(country.to_string(), knn_service);
         Ok(())
+    }
+
+    pub fn load_model<P: AsRef<Path>>(&mut self, country: &str, model_name: &str, model_path: P) -> Result<(), Error> {
+        let service = self.countries.get_mut(country).ok_or_else(|| KnnError::CountryNotFoundWhileLoadingModel(country.to_string()))?;
+        service.load_model(Model::Tensorflow(model_name.to_string()), model_path)
     }
 
     pub fn get_service(&self, country: &str) -> Option<&KnnService> {

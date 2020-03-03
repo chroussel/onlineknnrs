@@ -94,10 +94,24 @@ impl KnnIndex {
 
 #[derive(Default)]
 pub struct EmbeddingRegistry {
+    pub dim: usize,
+    zero: Array1<f32>,
     pub embeddings: HashMap<i32, KnnIndex>
 }
 
 impl EmbeddingRegistry {
+    pub fn new(dim: usize) -> EmbeddingRegistry {
+        EmbeddingRegistry {
+            dim,
+            zero: Array1::<f32>::zeros(dim),
+            embeddings:HashMap::new()
+        }
+    }
+
+    pub fn zero(&self) -> ArrayView1<f32> {
+        self.zero.view()
+    }
+
     pub fn fetch_item(&self, index_id: i32, label: i64) -> Option<ArrayView1<f32>> {
         self.embeddings.get(&index_id)
             .and_then(|index| index.get_item(label))

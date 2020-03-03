@@ -3,10 +3,16 @@ extern crate parquet;
 #[macro_use] extern crate failure;
 #[macro_use] extern crate log;
 extern crate tempdir;
+extern crate tensorflow;
 
 use failure::_core::str::FromStr;
+use crate::knnservice::Model;
+use tensorflow::Status;
+use std::error::Error;
 
+pub mod embedding_computer;
 pub mod knnservice;
+pub mod knn_tf;
 pub mod knncountry;
 pub mod hnswindex;
 pub mod knnindex;
@@ -26,7 +32,19 @@ pub enum KnnError {
     #[fail(display = "An unknown error has occurred.")]
     UnknownError,
     #[fail(display = "Can't parse {} to distance", _0)]
-    UnknownDistance(String)
+    UnknownDistance(String),
+    #[fail(display = "Can't find model {}", _0)]
+    ModelNotFound(Model),
+    #[fail(display = "Error in TF model {}", _0)]
+    TFError(String),
+    #[fail(display = "Not country {} can be found to insert Model. Please load the country first", _0)]
+    CountryNotFoundWhileLoadingModel(String)
+}
+
+impl From<tensorflow::Status> for KnnError {
+    fn from(status: Status) -> Self {
+        KnnError::TFError(format!("{:?}", status))
+    }
 }
 
 #[derive(Copy, Clone)]
