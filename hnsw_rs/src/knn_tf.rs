@@ -10,10 +10,15 @@ use crate::knnindex::EmbeddingRegistry;
 use crate::KnnError;
 use std::ops::Deref;
 use std::time::SystemTime;
+use prost::Message;
 
 pub struct KnnTf {
     graph: Graph,
     session: Session
+}
+
+pub mod config {
+    include!(concat!(env!("OUT_DIR"), "/tensorflow.rs"));
 }
 
 
@@ -26,6 +31,18 @@ impl KnnTf {
     const NB_EVENT:&'static str = "knn/feed/nb_events";
     const EVENT_TYPES:&'static str = "knn/feed/event_types";
     const FETCH_NAME: &'static str  = "knn/fetch/user_embedding";
+    fn build_config() -> Result<SessionOptions, KnnError> {
+        let mut exp = config::config_proto::Experimental::default();
+        exp.executor_type = String::from("SINGLE_THREADED_EXECUTOR");
+        let mut config_proto = config::ConfigProto::default();
+        config_proto.experimental = Some(exp);
+        let mut buf = Vec::<u8>::with_capacity(config_proto.encoded_len());
+        config_proto.encode_raw(&mut buf);
+        let mut session = SessionOptions::new();
+        session.set_config(&buf)
+            .map_err(KnnError::from)?;
+        Ok(session)
+    }
 
     pub fn load_model<P: AsRef<Path>>(model_path: P) -> Result<KnnTf, Error> {
         let model_path = model_path.as_ref();
@@ -35,7 +52,8 @@ impl KnnTf {
         let options = ImportGraphDefOptions::new();
         graph.import_graph_def(&proto, &options)
             .map_err(KnnError::from)?;
-        let session_options = SessionOptions::new();
+        let session_options = KnnTf::build_config()
+            .map_err(KnnError::from)?;
         let session = Session::new(&session_options, &graph)
             .map_err(KnnError::from)?;
         Ok(KnnTf {

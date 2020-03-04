@@ -16,10 +16,13 @@ parquet = "0.16"
 log = "0.4"
 tempdir = "0.3"
 tensorflow = "0.14.0"
+prost = "0.6"
+bytes = "0.5"
 
 [build-dependencies]
 cc = "1.0"
 bindgen = "0.53"
+prost-build = "0.6"
 
 [dev-dependencies]
 criterion = "0.3"

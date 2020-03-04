@@ -4,6 +4,7 @@ extern crate parquet;
 #[macro_use] extern crate log;
 extern crate tempdir;
 extern crate tensorflow;
+extern crate prost;
 
 use failure::_core::str::FromStr;
 use crate::knnservice::Model;

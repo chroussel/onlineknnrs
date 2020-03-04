@@ -70,8 +70,6 @@ fn parse_args() -> Result<ResultArgs, Error> {
 }
 
 async fn run(settings: Settings, result_args: ResultArgs) -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::from_env(Env::default().default_filter_or("info")).init();
-    let settings = Settings::new()?;
     let app_metrics = AtomicBucket::new();
 
     if let Some(graphite_settings) = settings.graphite {

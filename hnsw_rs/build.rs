@@ -1,5 +1,5 @@
 extern crate cc;
-
+extern crate prost_build;
 fn main() {
 
     cc::Build::new()
@@ -14,6 +14,8 @@ fn main() {
         .flag_if_supported("-Wno-unused-parameter")
         .flag_if_supported("-Wno-deprecated")
         .compile("knnservice");
+
+    prost_build::compile_protos(&["proto/config.proto"], &["proto/"]).unwrap();
     /*let bindings = bindgen::Builder::default()
         .rustfmt_bindings(true)
         .header("src_cpp/knn_api.h")

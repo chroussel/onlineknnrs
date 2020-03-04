@@ -1,0 +1,195 @@
+syntax = "proto3";
+
+package tensorflow;
+// Session configuration parameters.
+// The system picks appropriate values for fields that are not set.
+message ConfigProto {
+    // Map from device type name (e.g., "CPU" or "GPU" ) to maximum
+    // number of devices of that type to use.  If a particular device
+    // type is not found in the map, the system picks an appropriate
+    // number.
+    map<string, int32> device_count = 1;
+
+    // The execution of an individual op (for some op types) can be
+    // parallelized on a pool of intra_op_parallelism_threads.
+    // 0 means the system picks an appropriate number.
+    int32 intra_op_parallelism_threads = 2;
+
+    // Nodes that perform blocking operations are enqueued on a pool of
+    // inter_op_parallelism_threads available in each process.
+    //
+    // 0 means the system picks an appropriate number.
+    // Negative means all operations are performed in caller's thread.
+    //
+    // Note that the first Session created in the process sets the
+    // number of threads for all future sessions unless use_per_session_threads is
+    // true or session_inter_op_thread_pool is configured.
+    int32 inter_op_parallelism_threads = 5;
+
+    // If true, use a new set of threads for this session rather than the global
+    // pool of threads. Only supported by direct sessions.
+    //
+    // If false, use the global threads created by the first session, or the
+    // per-session thread pools configured by session_inter_op_thread_pool.
+    //
+    // This option is deprecated. The same effect can be achieved by setting
+    // session_inter_op_thread_pool to have one element, whose num_threads equals
+    // inter_op_parallelism_threads.
+    bool use_per_session_threads = 9;
+
+    // This option is experimental - it may be replaced with a different mechanism
+    // in the future.
+    //
+    // Configures session thread pools. If this is configured, then RunOptions for
+    // a Run call can select the thread pool to use.
+    //
+    // The intended use is for when some session invocations need to run in a
+    // background pool limited to a small number of threads:
+    // - For example, a session may be configured to have one large pool (for
+    // regular compute) and one small pool (for periodic, low priority work);
+    // using the small pool is currently the mechanism for limiting the inter-op
+    // parallelism of the low priority work.  Note that it does not limit the
+    // parallelism of work spawned by a single op kernel implementation.
+    // - Using this setting is normally not needed in training, but may help some
+    // serving use cases.
+    // - It is also generally recommended to set the global_name field of this
+    // proto, to avoid creating multiple large pools. It is typically better to
+    // run the non-low-priority work, even across sessions, in a single large
+    // pool.
+    repeated ThreadPoolOptionProto session_inter_op_thread_pool = 12;
+
+    // Assignment of Nodes to Devices is recomputed every placement_period
+    // steps until the system warms up (at which point the recomputation
+    // typically slows down automatically).
+    int32 placement_period = 3;
+
+    // When any filters are present sessions will ignore all devices which do not
+    // match the filters. Each filter can be partially specified, e.g. "/job:ps"
+    // "/job:worker/replica:3", etc.
+    repeated string device_filters = 4;
+    message Experimental {
+        // Task name for group resolution.
+        string collective_group_leader = 1;
+
+        // We removed the flag client_handles_error_formatting. Marking the tag
+        // number as reserved.
+        // TODO(shikharagarwal): Should we just remove this tag so that it can be
+        // used in future for other purpose?
+        reserved 2;
+
+        // Which executor to use, the default executor will be used
+        // if it is an empty string or "DEFAULT"
+        string executor_type = 3;
+
+        // Guidance to formatting of large RecvBuf fields for transfer.
+        // Any positive value sets the max chunk size.  0 defaults to 4096.
+        // Any negative value indicates no max, i.e. one chunk only.
+        int32 recv_buf_max_chunk = 4;
+
+        // If true, and supported by the platform, the runtime will attempt to
+        // use NUMA affinity where applicable.  One consequence will be the
+        // existence of as many CPU devices as there are available NUMA nodes.
+        bool use_numa_affinity = 5;
+
+        // If true, make collective op execution order sequential and deterministic
+        // for potentially concurrent collective instances.
+        bool collective_deterministic_sequential_execution = 6;
+
+        // If true, use NCCL for CollectiveOps.  This feature is highly
+        // experimental.
+        bool collective_nccl = 7;
+
+        // In the following, session state means the value of a variable, elements
+        // in a hash table, or any other resource, accessible by worker sessions
+        // held by a TF server.
+        //
+        // When ClusterSpec propagation is enabled, the value of
+        // isolate_session_state is ignored when deciding whether to share session
+        // states in a TF server (for backwards compatibility reasons).
+        // - If share_session_state_in_clusterspec_propagation is true, the session
+        // states are shared.
+        // - If share_session_state_in_clusterspec_propagation is false, session
+        // states are isolated.
+        //
+        // When clusterspec propagation is not used, the value of
+        // share_session_state_in_clusterspec_propagation is ignored when deciding
+        // whether to share session states in a TF server.
+        // - If isolate_session_state is true, session states are isolated.
+        // - If isolate_session_state is false, session states are shared.
+        //
+        // TODO(b/129330037): Add a single API that consistently treats
+        // isolate_session_state and ClusterSpec propagation.
+        bool share_session_state_in_clusterspec_propagation = 8;
+
+        // If using a direct session, disable spinning while waiting for work in
+        // the thread pool. This may result in higher latency for completing ops,
+        // but in the case where there is a lot of spinning may result in lower
+        // CPU usage.
+        bool disable_thread_spinning = 9;
+
+        // This was promoted to a non-experimental API. Please use
+        // ConfigProto.share_cluster_devices_in_session instead.
+        bool share_cluster_devices_in_session = 10;
+        // If true, the session may treat the graph as being static for optimization
+        // purposes.
+        //
+        // If this option is set to true when a session is created, the full
+        // GraphDef must be passed in a single call to Session::Create(), and
+        // Session::Extend() may not be supported.
+        bool optimize_for_static_graph = 12;
+
+        // Whether to enable the MLIR-based TF->XLA bridge.
+        //
+        // This is a replacement to the existing bridge, and not ready for
+        // production usage yet.
+        // If this option is set to true when a session is created, MLIR is used to
+        // perform the set of graph transformations to put the graph in a form that
+        // can be executed with delegation of some computations to an accelerator.
+        // This builds on the model of XLA where a subset of the graph is
+        // encapsulated and attached to a "compile" operation, whose result is fed
+        // to an "execute" operation. The kernel for these operations is responsible
+        // to lower the encapsulated graph to a particular device.
+        bool enable_mlir_bridge = 13;
+
+        // If true, the session will not store an additional copy of the graph for
+        // each subgraph.
+        //
+        // If this option is set to true when a session is created, the
+        // `RunOptions.output_partition_graphs` options must not be set.
+        bool disable_output_partition_graphs = 14;
+
+        // Minimum number of batches run through the XLA graph before XLA fusion
+        // autotuner is enabled. Default value of zero disables the autotuner.
+        //
+        // The XLA fusion autotuner can improve performance by executing a heuristic
+        // search on the compiler parameters.
+        int64 xla_fusion_autotuner_thresh = 15;
+    }
+
+    Experimental experimental = 16;
+}
+
+message ThreadPoolOptionProto {
+    // The number of threads in the pool.
+    //
+    // 0 means the system picks a value based on where this option proto is used
+    // (see the declaration of the specific field for more info).
+    int32 num_threads = 1;
+
+    // The global name of the threadpool.
+    //
+    // If empty, then the threadpool is made and used according to the scope it's
+    // in - e.g., for a session threadpool, it is used by that session only.
+    //
+    // If non-empty, then:
+    // - a global threadpool associated with this name is looked
+    //   up or created. This allows, for example, sharing one threadpool across
+    //   many sessions (e.g., like the default behavior, if
+    //   inter_op_parallelism_threads is not configured), but still partitioning
+    //   into a large and small pool.
+    // - if the threadpool for this global_name already exists, then it is an
+    //   error if the existing pool was created using a different num_threads
+    //   value as is specified on this call.
+    // - threadpools created this way are never garbage collected.
+    string global_name = 2;
+}
