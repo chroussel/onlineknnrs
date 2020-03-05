@@ -124,6 +124,10 @@ fn main() {
     if let Some(core_count) = &result_args.core_count {
         rt_builder.core_threads(*core_count);
     }
-    let mut rt = rt_builder.build().expect("Unable to initialize scheduler");
-    rt.block_on(run(settings, result_args)).expect("Unknown error");
+    let mut rt = rt_builder
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(run(settings, result_args)).expect("Working");
+
 }
