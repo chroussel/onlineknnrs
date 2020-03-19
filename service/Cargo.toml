@@ -4,6 +4,11 @@ version = "0.1.0"
 authors = ["Charles Roussel <c.roussel@criteo.com>"]
 edition = "2018"
 build = "build.rs"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Darktrop/onlineknnrs"
+homepage = "https://github.com/Darktrop/onlineknnrs"
+readme = "README.md"
+keywords = ["knn", "hnsw", "grpc", "tonic"]
 
 [[bin]]
 name = "onlineknn-server"
