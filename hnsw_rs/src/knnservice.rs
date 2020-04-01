@@ -108,16 +108,3 @@ impl KnnService {
             .unwrap_or_else(|| vec!()))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::knnservice::*;
-    use crate::{Distance, IndexConfig};
-
-    #[test]
-    fn simple_test() {
-        let config = IndexConfig::new(Distance::Euclidean, 100, 10);
-        let a = KnnService::new(config);
-
-    }
-}

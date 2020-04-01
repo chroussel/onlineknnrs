@@ -75,7 +75,7 @@ mod tests {
         let a = HnswIndex::new(config, 100).unwrap();
 
         for i in 0..50 {
-            let mut e = arr1(&[i as f32, (i+1) as f32, (i+2) as f32]);
+            let e = arr1(&[i as f32, (i+1) as f32, (i+2) as f32]);
             a.add_item(i, e);
         }
 
