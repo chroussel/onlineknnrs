@@ -13,3 +13,9 @@ obj/
 .vs
 dist/
 .gradle
+*.egg-info
+*.so
+*.dylib
+build/
+external/
+__pycache__

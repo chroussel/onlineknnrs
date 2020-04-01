@@ -1,4 +1,4 @@
-import knn_py
+from knn_python.python import knn_py
 
 service = knn_py.KnnService()
 model_name = "tf"

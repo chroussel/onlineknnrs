@@ -1,6 +1,7 @@
 extern crate hnsw_rs;
 extern crate pyo3;
 extern crate shellexpand;
+extern crate tensorflow_sys;
 
 use pyo3::prelude::*;
 use pyo3::exceptions::TypeError;
@@ -68,7 +69,7 @@ impl KnnService {
 
 
 #[pymodule]
-fn knn_py(_py: Python, m: &PyModule) -> PyResult<()> {
+fn knn_python(_py: Python, m: &PyModule) -> PyResult<()> {
     env_logger::from_env(Env::default().default_filter_or("info")).init();
     m.add_class::<KnnService>()?;
     Ok(())

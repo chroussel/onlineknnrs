@@ -21,7 +21,7 @@ prost = "0.6"
 tokio = { version = "0.2", features = ["full"] }
 log = "0.4"
 env_logger = "0.7"
-hnsw_rs = { path="../hnsw_rs" }
+hnsw_rs = { version = "0.1", path="../hnsw_rs" }
 failure = "0.1"
 clap = "2.33"
 dipstick = "0.7"
