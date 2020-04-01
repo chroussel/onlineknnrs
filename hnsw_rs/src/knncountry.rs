@@ -22,8 +22,8 @@ impl KnnByCountry {
         let index_country_root: PathBuf = PathBuf::from(indices_path).join(format!("country={}", country));
         let extra_country_root: PathBuf = PathBuf::from(extra_item_path).join(format!("country={}/non-recommendable", country));
 
-        let dimension_path = index_country_root.clone().join(DIMENSION_FILENAME);
-        let metric_path = index_country_root.clone().join(METRIC_FILENAME);
+        let dimension_path = index_country_root.join(DIMENSION_FILENAME);
+        let metric_path = index_country_root.join(METRIC_FILENAME);
 
         let dimension_value: usize = fs::read_to_string(&dimension_path).context(format!("Error while reading {}", dimension_path.display()))?.parse()?;
         let metric_value: Distance = fs::read_to_string(&metric_path).context(format!("Error while reading {}", metric_path.display()))?.parse()?;

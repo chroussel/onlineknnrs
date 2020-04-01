@@ -19,3 +19,4 @@ dist/
 build/
 external/
 __pycache__
+.DS_Store
