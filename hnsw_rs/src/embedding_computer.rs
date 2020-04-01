@@ -7,6 +7,7 @@ pub struct EmbeddingResult {
     pub user_event_used_count: usize
 }
 
+#[derive(Clone)]
 pub struct UserEvent {
     pub index: i32,
     pub label: i64,

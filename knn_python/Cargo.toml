@@ -13,6 +13,7 @@ keywords = ["knn", "hnsw", "python"]
 name = "knn_python"
 crate-type = ["rlib", "cdylib"]
 test = false
+bench = false
 
 [dependencies]
 tensorflow-sys = "0.17.0"
