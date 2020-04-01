@@ -17,13 +17,13 @@ jobs:
 
       - name: Install latest nighlty
         uses: actions-rs/toolchain@v1
-          with:
+        with:
             toolchain: nightly
             override: true
 
       - name: Lint with rustfmt
-          uses: actions-rs/cargo@v1
-          with:
+        uses: actions-rs/cargo@v1
+        with:
             command: fmt
 
       - name: Lint with clippy
@@ -51,26 +51,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
-          uses: actions/setup-python@v1
-          with:
+        uses: actions/setup-python@v1
+        with:
             python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install poetry
-            poetry install
-
       - name: Install latest nightly
-          uses: actions-rs/toolchain@v1
-          with:
-            toolchain: nightly
-            override: true
-      - name: Build Python package
-          run: poetry run maturin develop --release
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
       - name: build
-          uses: actions-rs/cargo@v1
-          with:
-            command: build
-            args: --release --all-features
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
         
