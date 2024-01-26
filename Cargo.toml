@@ -1,6 +1,6 @@
 [workspace]
 members=[
     "service",
-    "hnsw_rs",
+    "knn_rs",
     "knn_python"
 ]
