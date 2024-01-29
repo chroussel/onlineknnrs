@@ -1,44 +1,46 @@
-extern crate libc;
-extern crate parquet;
-#[macro_use] extern crate failure;
-#[macro_use] extern crate log;
-extern crate tempdir;
-extern crate tensorflow;
-extern crate prost;
+use std::str::FromStr;
 
-use failure::_core::str::FromStr;
 use crate::knnservice::Model;
 use tensorflow::Status;
+use thiserror::Error;
 
 pub mod embedding_computer;
-pub mod knnservice;
 pub mod knn_tf;
 pub mod knncountry;
-pub mod hnswindex;
 pub mod knnindex;
+pub mod knnservice;
 pub mod loader;
-#[allow(dead_code)]
-#[allow(non_upper_case_globals)]
-mod native;
+pub mod productindex;
+pub mod wrappedindex;
 
-#[derive(Fail, Debug)]
+#[derive(Error, Debug)]
 pub enum KnnError {
-    #[fail(display = "Invalid path.")]
+    #[error("Invalid path.")]
     InvalidPath,
-    #[fail(display = "Index for id {} is not found.", _0)]
+    #[error("Index for id {0} is not found.")]
     IndexNotFound(i32),
-    #[fail(display = "No vector has been found.")]
+    #[error("No vector has been found.")]
     NoVectorFound,
-    #[fail(display = "An unknown error has occurred.")]
+    #[error("An unknown error has occurred.")]
     UnknownError,
-    #[fail(display = "Can't parse {} to distance", _0)]
+    #[error("Indexes are not loaded")]
+    IndexNotLoaded,
+    #[error("Can't parse {0} to distance")]
     UnknownDistance(String),
-    #[fail(display = "Can't find model {}", _0)]
-    ModelNotFound(Model),
-    #[fail(display = "Error in TF model {}", _0)]
+    #[error("Can't find model {0}")]
+    ModelNotFound(String),
+    #[error("No model specified")]
+    ModelMissing,
+    #[error("IoError {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("Serialization Error {0}")]
+    SerdeError(#[from] serde_json::Error),
+    #[error("Error in Faiss {0}")]
+    FaissError(#[from] faiss::error::Error),
+    #[error("Error in TF model {0}")]
     TFError(String),
-    #[fail(display = "Not country {} can be found to insert Model. Please load the country first", _0)]
-    CountryNotFoundWhileLoadingModel(String)
+    #[error("Not country {0} can be found to insert Model. Please load the country first")]
+    CountryNotFoundWhileLoadingModel(String),
 }
 
 impl From<tensorflow::Status> for KnnError {
@@ -51,7 +53,7 @@ impl From<tensorflow::Status> for KnnError {
 pub struct IndexConfig {
     distance: Distance,
     dim: usize,
-    ef_search: usize
+    ef_search: usize,
 }
 
 impl IndexConfig {
@@ -59,7 +61,7 @@ impl IndexConfig {
         IndexConfig {
             distance,
             dim,
-            ef_search
+            ef_search,
         }
     }
 }
@@ -71,16 +73,6 @@ pub enum Distance {
     InnerProduct,
 }
 
-impl Distance {
-    pub fn to_native(self) -> i32 {
-        match self {
-            Distance::Euclidean => { native::Distance_Euclidian }
-            Distance::Angular => { native::Distance_Angular }
-            Distance::InnerProduct => { native::Distance_InnerProduct }
-        }
-    }
-}
-
 impl FromStr for Distance {
     type Err = KnnError;
 
@@ -89,7 +81,7 @@ impl FromStr for Distance {
             "euclidean" => Ok(Distance::Euclidean),
             "angular" => Ok(Distance::Angular),
             "dotproduct" => Ok(Distance::InnerProduct),
-            _ => Err(KnnError::UnknownDistance(value.to_string()))
+            _ => Err(KnnError::UnknownDistance(value.to_string())),
         }
     }
 }

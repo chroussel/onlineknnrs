@@ -1,124 +1,116 @@
-use std::collections::HashMap;
-use ndarray::*;
-use crate::hnswindex::HnswIndex;
-use std::collections::BinaryHeap;
-use failure::_core::cmp::Ordering;
-use std::path::Path;
 use crate::*;
-use failure::Error;
+use serde::Deserialize;
+use std::collections::BinaryHeap;
+use std::collections::HashMap;
+
+use self::productindex::IndexResult;
+use self::productindex::ProductIndex;
+use self::wrappedindex::WrappedIndex;
 
 pub struct KnnIndex {
-    config: IndexConfig,
-    hnsw_indexes: Vec<HnswIndex>,
-    extra_items: HashMap<i64, Array1<f32>>
+    indices: Vec<WrappedIndex>,
+    extra_items: Vec<WrappedIndex>,
 }
 
-struct IndexResult(i64, f32);
-
-impl Eq for IndexResult {}
-
-impl PartialEq for IndexResult {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0 && self.1.eq(&other.1)
-    }
+#[derive(Deserialize)]
+pub struct Metadata {
+    pub(crate) partner_id: i32,
+    pub(crate) chunk_id: i32,
+    pub(crate) count: usize,
+    pub(crate) country: String,
+    pub(crate) index_param: String,
+    pub(crate) is_recommendable: bool,
+    pub(crate) metrics: String,
+    pub(crate) metric: String,
+    pub(crate) dimension: usize,
 }
 
-impl Ord for IndexResult {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match self.partial_cmp(other) {
-            None => Ordering::Equal,
-            Some(r) => r,
+impl ProductIndex for KnnIndex {
+    fn count(&self) -> usize {
+        if let Some(i) = self.indices.first() {
+            return i.count();
         }
-    }
-}
-
-impl PartialOrd for IndexResult {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let r = self.1.partial_cmp(&other.1);
-        if let Some(Ordering::Equal) = r {
-            self.0.partial_cmp(&other.0)
-        } else {
-            r
+        if let Some(i) = self.extra_items.first() {
+            return i.count();
         }
+        return 0;
+    }
+
+    fn dimension(&self) -> usize {
+        if let Some(i) = self.indices.first() {
+            return i.dimension();
+        }
+        if let Some(i) = self.extra_items.first() {
+            return i.dimension();
+        }
+        return 0;
+    }
+
+    fn get_item(&self, label: i64) -> Result<Option<Vec<f32>>, KnnError> {
+        for i in self.indices.iter() {
+            if let Some(v) = i.get_item(label)? {
+                return Ok(Some(v));
+            }
+        }
+        for i in self.extra_items.iter() {
+            if let Some(v) = i.get_item(label)? {
+                return Ok(Some(v));
+            }
+        }
+        Ok(None)
+    }
+
+    fn search(&self, embedding: &[f32], nb_result: usize) -> Result<Vec<IndexResult>, KnnError> {
+        let mut heap = BinaryHeap::with_capacity(nb_result);
+        for index in self.indices.iter() {
+            let res = index.search(embedding, nb_result)?;
+            res.into_iter().for_each(|result| {
+                if heap.len() >= nb_result {
+                    heap.pop();
+                }
+                heap.push(result);
+            });
+        }
+        Ok(heap.into_vec())
     }
 }
 
 impl KnnIndex {
-    pub fn new(config: IndexConfig) -> KnnIndex {
+    pub fn new() -> KnnIndex {
         KnnIndex {
-            config,
-            hnsw_indexes: vec!(),
-            extra_items: HashMap::new()
+            indices: vec![],
+            extra_items: vec![],
         }
     }
 
-    pub fn add_index_from_path<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Error>{
-        let wrapper = HnswIndex::load(self.config, path)?;
-        self.hnsw_indexes.push(wrapper);
-        Ok(())
+    pub fn add_reco_index(&mut self, wi: WrappedIndex) {
+        self.indices.push(wi);
     }
 
-    pub fn add_extra_item(&mut self, label: i64, embedding: Array1<f32>) {
-        self.extra_items.insert(label, embedding);
-    }
-
-    pub fn get_item(&self, label: i64) -> Option<ArrayView1<f32>> {
-        self.extra_items.get(&label)
-            .map(|e| e.view())
-            .or_else(|| self.get_item_from_indices(label))
-    }
-
-    pub fn get_item_from_indices(&self, label: i64) -> Option<ArrayView1<f32>> {
-        self.hnsw_indexes.iter().find_map(|index| index.get_item(label))
-    }
-
-    pub fn search(&self, mut embedding: ArrayViewMut1<f32>, nb_result: usize) -> Vec<(i64, f32)> {
-        let init_heap = BinaryHeap::with_capacity(nb_result);
-        self.hnsw_indexes.iter()
-            .map(|index| index.query(&mut embedding, nb_result))
-            .fold(init_heap, |mut heap, item| {
-                item.into_iter().for_each(|(label, distance)| {
-                    if heap.len() < nb_result {
-                        heap.push(IndexResult(label, distance));
-                    } else {
-                        heap.pop();
-                    }
-                });
-                heap
-            })
-            .into_iter()
-            .map(|IndexResult(label, distance)| (label, distance))
-            .collect()
+    pub fn add_non_reco_index(&mut self, wi: WrappedIndex) {
+        self.extra_items.push(wi);
     }
 }
 
 #[derive(Default)]
 pub struct EmbeddingRegistry {
     pub dim: usize,
-    zero: Array1<f32>,
-    pub embeddings: HashMap<i32, KnnIndex>
+    pub embeddings: HashMap<i32, KnnIndex>,
 }
 
 impl EmbeddingRegistry {
-    pub fn new(dim: usize) -> EmbeddingRegistry {
-        EmbeddingRegistry {
-            dim,
-            zero: Array1::<f32>::zeros(dim),
-            embeddings:HashMap::new()
+    pub fn new(dim: usize, embeddings: HashMap<i32, KnnIndex>) -> EmbeddingRegistry {
+        EmbeddingRegistry { dim, embeddings }
+    }
+
+    pub fn fetch_item(&self, index_id: i32, label: i64) -> Result<Option<Vec<f32>>, KnnError> {
+        if let Some(index) = self.embeddings.get(&index_id) {
+            return index.get_item(label);
         }
+        return Ok(None);
     }
 
-    pub fn zero(&self) -> ArrayView1<f32> {
-        self.zero.view()
-    }
-
-    pub fn fetch_item(&self, index_id: i32, label: i64) -> Option<ArrayView1<f32>> {
-        self.embeddings.get(&index_id)
-            .and_then(|index| index.get_item(label))
-    }
-
-    pub fn has_item(&self, index_id: i32, label: i64) -> bool {
-        self.fetch_item(index_id, label).is_some()
+    pub fn has_item(&self, index_id: i32, label: i64) -> Result<bool, KnnError> {
+        self.fetch_item(index_id, label).map(|a| a.is_some())
     }
 }
-

@@ -1,105 +1,114 @@
-use parquet::file::reader::{FileReader, SerializedFileReader};
-use parquet::record::{ListAccessor, Row, List};
-use parquet::record::RowAccessor;
-use std::path::{Path, PathBuf};
-use failure::Error;
-use std::fs;
-use std::convert::TryFrom;
-use std::io::Write;
-use ndarray::Array1;
-use tempdir::TempDir;
+use byteorder::{BigEndian, ReadBytesExt};
+use faiss::Idx;
+use log::*;
+use std::collections::HashMap;
+use std::io::{BufReader, ErrorKind};
+use std::path::Path;
 
-struct PartnerChunk {
-    partner_id: i32,
-    data_path: PathBuf,
-}
+use crate::knnindex::{KnnIndex, Metadata};
+use crate::wrappedindex::WrappedIndex;
+use crate::KnnError;
 
 pub enum Loader {}
 
 impl Loader {
-    pub fn load_extra_item_folder<P, F>(path: P, mut add_non_searchable_items: F) -> Result<(), Error>
-        where
-            P: AsRef<Path>,
-            F: FnMut(i32, i64, Array1<f32>)
-    {
-        info!("Loading extra items from {}", path.as_ref().display());
-        let index_paths = fs::read_dir(path)?;
-
-        for path in index_paths {
-            let entry: fs::DirEntry = path?;
-            if entry.file_name().into_string().unwrap().starts_with('_') {
-                continue;
+    fn load_embedding_norms<P: AsRef<Path>>(path: P) -> Result<Vec<f32>, KnnError> {
+        let f = std::fs::File::open(path)?;
+        let len = f.metadata().map(|m| m.len()).unwrap_or(0u64);
+        let mut vec = Vec::with_capacity((len / 4) as usize);
+        let mut buf = BufReader::new(f);
+        loop {
+            match buf.read_f32::<BigEndian>() {
+                Ok(v) => {
+                    vec.push(v);
+                }
+                Err(e) => {
+                    if e.kind() == ErrorKind::UnexpectedEof {
+                        // Nothing more to read
+                        break;
+                    } else {
+                        return Err(KnnError::IoError(e));
+                    }
+                }
             }
-            info!("Loading path: {:?}", entry);
-            Loader::parse_extra_items(&entry.path(), &mut add_non_searchable_items)?;
         }
-        Ok(())
+        Ok(vec)
     }
 
-    fn parse_extra_items<P, F>(path: P, mut add_non_searchable_items: F) -> Result<(), Error>
-    where
-        P: AsRef<Path>,
-        F: FnMut(i32, i64, Array1<f32>)
-    {
-        let reader = SerializedFileReader::try_from(path.as_ref())?;
-        for record in reader.get_row_iter(None)? {
-            let product_partner: &Row = record.get_group(0)?;
-            let partner_id = product_partner.get_int(1)?;
-            let product = product_partner.get_long(0)?;
-            let embedding_list: &List = record.get_list(1)?;
-            let mut embedding = Array1::<f32>::zeros(embedding_list.len() + 1);
-            for i in 0..embedding_list.len() {
-                embedding[i] = embedding_list.get_float(i)?;
+    fn load_mapping<P: AsRef<Path>>(path: P) -> Result<HashMap<i64, faiss::Idx>, KnnError> {
+        let f = std::fs::File::open(path)?;
+        let len = f.metadata().map(|m| m.len()).unwrap_or(0u64);
+        let mut map = HashMap::with_capacity((len / 8) as usize);
+        let mut buf = BufReader::new(f);
+        let mut idx = 0;
+        loop {
+            match buf.read_i64::<BigEndian>() {
+                Ok(v) => {
+                    map.insert(v, Idx::new(idx));
+                    idx += 1;
+                }
+                Err(e) => {
+                    if e.kind() == ErrorKind::UnexpectedEof {
+                        // Nothing more to read
+                        break;
+                    } else {
+                        return Err(KnnError::IoError(e));
+                    }
+                }
             }
-            add_non_searchable_items(partner_id, product, embedding);
         }
-        Ok(())
+        Ok(map)
     }
 
-    pub fn load_index_folder<P, F>(path: P, mut add_index: F) -> Result<(), Error>
-    where
-        P: AsRef<Path>,
-        F: FnMut(i32, PathBuf) ->  Result<(), Error>
-    {
-        let tempdir = TempDir::new("knn_index").unwrap();
+    fn load_index<P: AsRef<Path>>(path: P, metadata: &Metadata) -> Result<WrappedIndex, KnnError> {
         let path = path.as_ref();
-        info!("Loading knn index from {}", path.display());
-        let index_paths = fs::read_dir(path).expect("working path");
-        for path in index_paths {
-            let entry: fs::DirEntry = path.expect("dir entry");
-            if entry.file_name().into_string().unwrap().starts_with('_') {
-                continue;
-            }
-            info!("Loading path: {}", entry.path().display());
+        let f_boolean = if metadata.is_recommendable {
+            "True"
+        } else {
+            "False"
+        };
+        let index_filename = format!(
+            "{}.{}.{}.{}.index",
+            metadata.country, metadata.partner_id, metadata.chunk_id, f_boolean
+        );
+        let norm_filename = format!("{}_embeddingNorms.array", index_filename);
+        let mapping_filename = format!("{}_inverseMapping.array", index_filename);
+        let local_path = path.join("indices").join(index_filename);
 
-            let partner_chunks = Loader::parse_index_file(entry.path(), tempdir.path())?;
-            for pc in partner_chunks {
-                add_index(pc.partner_id, pc.data_path)?;
+        let local_path_str = local_path
+            .into_os_string()
+            .into_string()
+            .map_err(|_| KnnError::InvalidPath)?;
+        let index = faiss::read_index(local_path_str)?;
+
+        let mapping = Loader::load_mapping(path.join("indices").join(mapping_filename.clone()))?;
+        let norm = Loader::load_embedding_norms(path.join("indices").join(mapping_filename))?;
+        Ok(WrappedIndex::new(Box::new(index), mapping, norm))
+    }
+
+    pub fn load_index_folder<P>(path: P) -> Result<HashMap<i32, KnnIndex>, KnnError>
+    where
+        P: AsRef<Path>,
+    {
+        info!("Starting to load {}", path.as_ref().display());
+        let metadata_path = path.as_ref().join("metadata.json");
+        let fs = std::fs::File::open(metadata_path)?;
+        let metadatas: Vec<Metadata> = serde_json::from_reader(fs)?;
+        let mut indices: HashMap<i32, KnnIndex> = HashMap::new();
+
+        for m in metadatas {
+            info!("Loading chunk {}/{}", m.partner_id, m.chunk_id);
+            let index = Loader::load_index(path.as_ref(), &m)?;
+            let mut ki = indices
+                .entry(m.partner_id)
+                .or_insert_with(|| KnnIndex::new());
+            if m.is_recommendable {
+                ki.add_reco_index(index)
+            } else {
+                ki.add_non_reco_index(index)
             }
         }
         info!("Load done");
-        Ok(())
-    }
-
-    fn parse_index_file<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, tempdir: P2) -> Result<Vec<PartnerChunk>, Error> {
-        let path = path.as_ref();
-        let tempdir = tempdir.as_ref();
-        let reader = SerializedFileReader::try_from(path.to_str().unwrap())?;
-        let mut pcs = vec![];
-        for record in reader.get_row_iter(None)? {
-            let partner_chunk = record.get_group(0)?;
-            let partner = partner_chunk.get_int(0)?;
-            let chunk = partner_chunk.get_int(1)?;
-            let ba = record.get_bytes(1)?;
-            let data_path = tempdir.join(format!("chunk-{}-{}", partner, chunk));
-            let mut file = fs::File::create(&data_path)?;
-            file.write_all(ba.data())?;
-            let pc = PartnerChunk {
-                partner_id: partner,
-                data_path,
-            };
-            pcs.push(pc);
-        }
-        Ok(pcs)
+        Ok(indices)
     }
 }

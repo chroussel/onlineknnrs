@@ -1,6 +1,8 @@
 [workspace]
 members=[
     "service",
-    "knn_rs",
-    "knn_python"
 ]
+
+[patch.crates-io]
+faiss = { git = 'https://github.com/chroussel/faiss-rs.git' }
+faiss-sys = { git = 'https://github.com/chroussel/faiss-rs.git' }

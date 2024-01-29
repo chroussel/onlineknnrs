@@ -1,13 +1,31 @@
-use std::collections::HashMap;
 use crate::knnservice::{KnnService, Model};
-use std::path::{Path, PathBuf};
-use failure::{Error, ResultExt};
-use std::fs;
 use crate::{Distance, IndexConfig, KnnError};
+use log::{error, info, warn};
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+#[derive(Debug, Default, Clone)]
+struct KnnCountryConfig {
+    indices_root_path: PathBuf,
+    models: Vec<Model>,
+    platform: String,
+    version: String,
+}
+
+impl KnnCountryConfig {
+    fn indice_path(&self, country: &str) -> PathBuf {
+        self.indices_root_path
+            .join(self.platform.clone())
+            .join(self.version.clone())
+            .join(format!("country={}", country))
+    }
+}
 
 #[derive(Default)]
 pub struct KnnByCountry {
-    countries: HashMap<String, KnnService>
+    config: KnnCountryConfig,
+    countries: HashMap<String, KnnService>,
 }
 
 const DIMENSION_FILENAME: &str = "_dimension";
@@ -15,39 +33,40 @@ const METRIC_FILENAME: &str = "_metrics";
 const DEFAULT_EF_SEARCH: usize = 50;
 
 impl KnnByCountry {
-    pub fn load<P: AsRef<Path>>(&mut self, country: &str, indices_path: P, extra_item_path: P, models_path: Option<P>) -> Result<(), Error> {
-        let indices_path = indices_path.as_ref();
-        let extra_item_path = extra_item_path.as_ref();
-        let models_path = models_path.map(|p| PathBuf::from(p.as_ref()).join(format!("country={}/_model.pb", country)));
-        let index_country_root: PathBuf = PathBuf::from(indices_path).join(format!("country={}", country));
-        let extra_country_root: PathBuf = PathBuf::from(extra_item_path).join(format!("country={}/non-recommendable", country));
+    pub fn new(config: KnnCountryConfig) -> KnnByCountry {
+        KnnByCountry {
+            config,
+            countries: HashMap::new(),
+        }
+    }
 
-        let dimension_path = index_country_root.join(DIMENSION_FILENAME);
-        let metric_path = index_country_root.join(METRIC_FILENAME);
+    pub fn load(&mut self, country: &str) -> Result<(), KnnError> {
+        let mut knn_service = KnnService::new();
+        knn_service.load_index(self.config.indice_path(country))?;
 
-        let dimension_value: usize = fs::read_to_string(&dimension_path).context(format!("Error while reading {}", dimension_path.display()))?.parse()?;
-        let metric_value: Distance = fs::read_to_string(&metric_path).context(format!("Error while reading {}", metric_path.display()))?.parse()?;
-
-        let mut knn_service = KnnService::new(IndexConfig::new(metric_value, dimension_value, DEFAULT_EF_SEARCH));
-        knn_service.load(index_country_root, extra_country_root)?;
-        if let Some(models_root) = models_path {
-            if models_root.exists() {
-                knn_service.load_model(Model::Tensorflow("default".into()), models_root)?;
-            } else {
-                warn!("No model could be found in {}. Skipping", models_root.display());
-            }
+        for m in self.config.models.iter() {
+            let mpath = m
+                .model_path
+                .join(self.config.platform.clone())
+                .join(m.version.clone())
+                .join(format!("country={}", country));
+            knn_service.load_model(m.clone(), mpath)?;
         }
         self.countries.insert(country.to_string(), knn_service);
         Ok(())
     }
 
-    pub fn load_model<P: AsRef<Path>>(&mut self, country: &str, model_name: &str, model_path: P) -> Result<(), Error> {
-        let service = self.countries.get_mut(country).ok_or_else(|| KnnError::CountryNotFoundWhileLoadingModel(country.to_string()))?;
-        service.load_model(Model::Tensorflow(model_name.to_string()), model_path)
+    fn load_countries(&mut self, countries: &[String]) -> Result<(), KnnError> {
+        for c in countries {
+            self.load(c)?
+        }
+        Ok(())
     }
 
     pub fn get_service(&self, country: &str) -> Option<&KnnService> {
-        self.countries.get(country).or_else(|| self.countries.get("XX"))
+        self.countries
+            .get(country)
+            .or_else(|| self.countries.get("XX"))
     }
 
     pub fn get_countries(&self) -> Vec<String> {
