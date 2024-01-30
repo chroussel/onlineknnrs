@@ -1,10 +1,8 @@
 use crate::knn::{knn_server::*, *};
 use anyhow::Result;
-use knn_rs::knncountry::{KnnByCountry, KnnConfig};
+use knn_rs::knncountry::{Config, KnnByCountry};
 use knn_rs::{embedding_computer::UserEvent, productindex::IndexResult};
 use metrics::{counter, histogram, Counter, Histogram};
-use std::collections::HashSet;
-use std::path::Path;
 use tokio::time::Instant;
 use tonic::{Request, Response, Status};
 
@@ -28,26 +26,24 @@ impl<'a> Drop for TimeHandle<'a> {
 }
 
 pub struct KnnController {
-    countries: Vec<String>,
     knn_country: KnnByCountry,
     metrics: ControllerMetrics,
 }
 impl KnnController {
-    pub fn new(countries: Vec<String>, config: KnnConfig) -> KnnController {
+    pub fn new(config: Config) -> KnnController {
         let labels = [("service", "knn_controller")];
         let metrics = ControllerMetrics {
             request_count: counter!("request_count", &labels),
             request_latency: histogram!("request_latency", &labels),
         };
         KnnController {
-            countries,
             knn_country: KnnByCountry::new(config),
             metrics,
         }
     }
 
     pub fn load(&mut self) -> anyhow::Result<()> {
-        self.knn_country.load_countries(&self.countries)?;
+        self.knn_country.load()?;
         Ok(())
     }
 
@@ -92,7 +88,7 @@ impl Knn for KnnController {
                 &events,
                 request.index_id,
                 request.result_count as usize,
-                self.model.clone(),
+                None,
             );
 
             match result {

@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use self::productindex::IndexResult;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub name: String,
     pub model_path: Option<PathBuf>,
@@ -26,6 +27,19 @@ pub enum ModelType {
     Average,
     Tensorflow,
     XLA,
+}
+
+impl FromStr for ModelType {
+    type Err = KnnError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "average" | "avg" => Ok(ModelType::Average),
+            "tf" | "tensorflow" => Ok(ModelType::Tensorflow),
+            "xla" => Ok(ModelType::XLA),
+            _ => Err(KnnError::ModelNotFound(s.to_string())),
+        }
+    }
 }
 
 pub struct KnnService {

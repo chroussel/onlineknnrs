@@ -2,18 +2,19 @@ use serde::Deserialize;
 
 use crate::knnservice::{KnnService, Model};
 use crate::KnnError;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Default, Clone, Deserialize)]
-pub struct KnnConfig {
+pub struct Config {
     pub indices_root_path: PathBuf,
     pub models: Vec<Model>,
     pub platform: String,
     pub version: String,
+    pub countries: Vec<String>,
 }
 
-impl KnnConfig {
+impl Config {
     fn indice_path(&self, country: &str) -> PathBuf {
         self.indices_root_path
             .join(self.platform.clone())
@@ -23,38 +24,33 @@ impl KnnConfig {
 }
 
 pub struct KnnByCountry {
-    config: KnnConfig,
+    config: Config,
     countries: HashMap<String, KnnService>,
 }
 
 impl KnnByCountry {
-    pub fn new(config: KnnConfig) -> KnnByCountry {
+    pub fn new(config: Config) -> KnnByCountry {
         KnnByCountry {
             config,
             countries: HashMap::new(),
         }
     }
 
-    pub fn load(&mut self, country: &str) -> Result<(), KnnError> {
-        let mut knn_service = KnnService::new();
-        knn_service.load_index(self.config.indice_path(country))?;
+    pub fn load(&mut self) -> Result<(), KnnError> {
+        for country in self.config.countries.iter() {
+            let mut knn_service = KnnService::new();
+            knn_service.load_index(self.config.indice_path(country))?;
 
-        for m in self.config.models.iter() {
-            let mpath = m.model_path.as_ref().map(|mp| {
-                mp.join(self.config.platform.clone())
-                    .join(m.version.as_ref().unwrap())
-                    .join(format!("country={}", country))
-            });
+            for m in self.config.models.iter() {
+                let mpath = m.model_path.as_ref().map(|mp| {
+                    mp.join(self.config.platform.clone())
+                        .join(m.version.as_ref().unwrap())
+                        .join(format!("country={}", country))
+                });
 
-            knn_service.load_model(m.clone(), mpath)?;
-        }
-        self.countries.insert(country.to_string(), knn_service);
-        Ok(())
-    }
-
-    pub fn load_countries(&mut self, countries: &[String]) -> Result<(), KnnError> {
-        for c in countries {
-            self.load(c)?
+                knn_service.load_model(m.clone(), mpath)?;
+            }
+            self.countries.insert(country.to_string(), knn_service);
         }
         Ok(())
     }

@@ -1,1 +1,15 @@
-country = ["FR"]
+countries = ["FR"]
+platform = "EU"
+
+[server]
+workerThread = 4
+
+[indexConfig]
+embeddingVersion = "20240124000000"
+indicesRoot = "../knn_rs/data/all_indices"
+
+[modelConfig]
+[[modelConfig.models]]
+name = "abc"
+modelType = "avg"
+isDefault = true

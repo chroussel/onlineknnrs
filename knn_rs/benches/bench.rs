@@ -6,7 +6,7 @@ use criterion::black_box;
 use criterion::Criterion;
 
 use knn_rs::embedding_computer::UserEvent;
-use knn_rs::knncountry::{KnnByCountry, KnnConfig};
+use knn_rs::knncountry::{Config, KnnByCountry};
 use knn_rs::knnservice::*;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -15,7 +15,8 @@ const NB_EMBEDDINGS: usize = 50;
 const INDEX_ID: i32 = 868;
 
 fn bench(c: &mut Criterion) {
-    let config = KnnConfig {
+    let config = Config {
+        countries: vec!["FR".into()],
         platform: "EU".into(),
         indices_root_path: PathBuf::from_str("data/all_indices").expect("path"),
         models: vec![Model {
@@ -28,7 +29,7 @@ fn bench(c: &mut Criterion) {
         version: "20240124000000".into(),
     };
     let mut kc = KnnByCountry::new(config);
-    kc.load_countries(&["FR".into()]).expect("Loading index");
+    kc.load().expect("Loading index");
 
     let knn_service = kc.get_service("FR").expect("loaded country");
 

@@ -96,7 +96,7 @@ impl Loader {
         let mut indices: HashMap<i32, KnnIndex> = HashMap::new();
 
         for m in metadatas {
-            info!("Loading chunk {}/{}", m.partner_id, m.chunk_id);
+            debug!("Loading chunk {}/{}", m.partner_id, m.chunk_id);
             let index = Loader::load_index(path.as_ref(), &m)?;
             let mut ki = indices
                 .entry(m.partner_id)
