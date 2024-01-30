@@ -98,9 +98,7 @@ impl Loader {
         for m in metadatas {
             debug!("Loading chunk {}/{}", m.partner_id, m.chunk_id);
             let index = Loader::load_index(path.as_ref(), &m)?;
-            let mut ki = indices
-                .entry(m.partner_id)
-                .or_insert_with(|| KnnIndex::new());
+            let ki = indices.entry(m.partner_id).or_default();
             if m.is_recommendable {
                 ki.add_reco_index(index)
             } else {

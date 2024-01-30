@@ -56,7 +56,7 @@ impl ProductIndex for WrappedIndex {
             .labels
             .into_iter()
             .map(|d| d.to_native())
-            .zip(r.distances.into_iter())
+            .zip(r.distances)
             .map(|a| IndexResult {
                 label: a.0,
                 distance: a.1,

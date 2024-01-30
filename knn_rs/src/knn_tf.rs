@@ -27,10 +27,13 @@ impl KnnTf {
     const EVENT_TYPES: &'static str = "knn/feed/event_types";
     const FETCH_NAME: &'static str = "knn/fetch/user_embedding";
     fn build_config() -> Result<SessionOptions, KnnError> {
-        let mut exp = config::config_proto::Experimental::default();
-        exp.executor_type = String::from("SINGLE_THREADED_EXECUTOR");
-        let mut config_proto = config::ConfigProto::default();
-        config_proto.experimental = Some(exp);
+        let config_proto = config::ConfigProto {
+            experimental: Some(config::config_proto::Experimental {
+                executor_type: "SINGLE_THREADED_EXECUTOR".into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
         let mut buf = Vec::<u8>::with_capacity(config_proto.encoded_len());
         config_proto.encode_raw(&mut buf);
         let mut session = SessionOptions::new();

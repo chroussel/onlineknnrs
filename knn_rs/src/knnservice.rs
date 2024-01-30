@@ -48,6 +48,12 @@ pub struct KnnService {
     models: HashMap<String, Box<dyn UserEmbeddingComputer>>,
 }
 
+impl Default for KnnService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KnnService {
     pub fn new() -> Self {
         KnnService {
@@ -59,17 +65,17 @@ impl KnnService {
 
     pub fn list_labels(&self, partner_id: i32) -> Result<Vec<i64>, KnnError> {
         if let Some(emr) = self.embedding_registry.as_ref() {
-            return emr.list_labels(partner_id);
+            emr.list_labels(partner_id)
         } else {
-            return Err(KnnError::IndexNotLoaded);
+            Err(KnnError::IndexNotLoaded)
         }
     }
 
     pub fn get_item(&self, partner_id: i32, label: i64) -> Result<Option<Vec<f32>>, KnnError> {
         if let Some(emr) = self.embedding_registry.as_ref() {
-            return emr.fetch_item(partner_id, label);
+            emr.fetch_item(partner_id, label)
         } else {
-            return Err(KnnError::IndexNotLoaded);
+            Err(KnnError::IndexNotLoaded)
         }
     }
 
@@ -96,7 +102,7 @@ impl KnnService {
     ) -> Result<(), KnnError> {
         info!("KnnService: Starting model load of {}", model.name);
         let computer: Box<dyn UserEmbeddingComputer> = match model.model_type {
-            ModelType::Average => Box::new(AverageComputer::default()),
+            ModelType::Average => Box::<AverageComputer>::default(),
             ModelType::Tensorflow => {
                 if let Some(mp) = tf_model {
                     Box::new(KnnTf::load_model(mp)?)
@@ -128,10 +134,10 @@ impl KnnService {
                     .and_then(|m| m.compute_user_vector(emr, user_events))
                     .map_err(From::from)
             } else {
-                return Err(KnnError::IndexNotLoaded);
+                Err(KnnError::IndexNotLoaded)
             }
         } else {
-            return Err(KnnError::ModelMissing);
+            Err(KnnError::ModelMissing)
         }
     }
 
@@ -150,12 +156,12 @@ impl KnnService {
 
         if let Some(emr) = self.embedding_registry.as_ref() {
             if let Some(index) = emr.embeddings.get(&query_index) {
-                return index.search(&user_vector.user_embedding, k);
+                index.search(&user_vector.user_embedding, k)
             } else {
-                return Ok(vec![]);
+                Ok(vec![])
             }
         } else {
-            return Err(KnnError::IndexNotLoaded);
+            Err(KnnError::IndexNotLoaded)
         }
     }
 }

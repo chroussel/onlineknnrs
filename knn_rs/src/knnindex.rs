@@ -35,7 +35,7 @@ impl ProductIndex for KnnIndex {
         if let Some(i) = self.extra_items.first() {
             return i.count();
         }
-        return 0;
+        0
     }
 
     fn dimension(&self) -> usize {
@@ -45,7 +45,7 @@ impl ProductIndex for KnnIndex {
         if let Some(i) = self.extra_items.first() {
             return i.dimension();
         }
-        return 0;
+        0
     }
 
     fn list_labels(&self) -> Result<Vec<i64>, KnnError> {
@@ -88,6 +88,12 @@ impl ProductIndex for KnnIndex {
     }
 }
 
+impl Default for KnnIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KnnIndex {
     pub fn new() -> KnnIndex {
         KnnIndex {
@@ -118,16 +124,18 @@ impl EmbeddingRegistry {
 
     pub fn list_labels(&self, index_id: i32) -> Result<Vec<i64>, KnnError> {
         if let Some(index) = self.embeddings.get(&index_id) {
-            return index.list_labels();
+            index.list_labels()
+        } else {
+            Ok(vec![])
         }
-        return Ok(vec![]);
     }
 
     pub fn fetch_item(&self, index_id: i32, label: i64) -> Result<Option<Vec<f32>>, KnnError> {
         if let Some(index) = self.embeddings.get(&index_id) {
-            return index.get_item(label);
+            index.get_item(label)
+        } else {
+            Ok(None)
         }
-        return Ok(None);
     }
 
     pub fn has_item(&self, index_id: i32, label: i64) -> Result<bool, KnnError> {

@@ -48,8 +48,7 @@ impl KnnController {
     }
 
     fn build_response(products: Vec<IndexResult>) -> KnnResponse {
-        let mut response = KnnResponse::default();
-        response.products = products
+        let products = products
             .iter()
             .map(|ir| Product {
                 product_id: ir.label,
@@ -58,7 +57,10 @@ impl KnnController {
                 squared_l2_norm: 0f32,
             })
             .collect();
-        response
+        KnnResponse {
+            products,
+            ..Default::default()
+        }
     }
 }
 struct ControllerMetrics {
@@ -120,10 +122,9 @@ impl Knn for KnnController {
             .knn_country
             .get_countries()
             .into_iter()
-            .map(|c| {
-                let mut country_info = CountryInfo::default();
-                country_info.name = c;
-                country_info
+            .map(|c| CountryInfo {
+                name: c,
+                ..Default::default()
             })
             .collect();
         Ok(Response::new(AvailableCountriesResponse { countries }))
