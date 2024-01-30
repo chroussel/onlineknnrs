@@ -3,6 +3,7 @@ use crate::KnnError;
 pub trait ProductIndex {
     fn count(&self) -> usize;
     fn dimension(&self) -> usize;
+    fn list_labels(&self) -> Result<Vec<i64>, KnnError>;
     fn get_item(&self, id: i64) -> Result<Option<Vec<f32>>, KnnError>;
     fn search(&self, embedding: &[f32], output: usize) -> Result<Vec<IndexResult>, KnnError>;
 }

@@ -6,22 +6,23 @@ use crate::knnindex::EmbeddingRegistry;
 use crate::loader::Loader;
 use crate::productindex::ProductIndex;
 use crate::*;
-use log::{error, info, warn};
+use log::info;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use self::productindex::IndexResult;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Model {
     pub name: String,
-    pub model_path: PathBuf,
+    pub model_path: Option<PathBuf>,
     pub model_type: ModelType,
     pub is_default: bool,
-    pub version: String,
+    pub version: Option<String>,
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Deserialize)]
 pub enum ModelType {
     Average,
     Tensorflow,
@@ -40,6 +41,22 @@ impl KnnService {
             embedding_registry: None,
             default_model: None,
             models: HashMap::new(),
+        }
+    }
+
+    pub fn list_labels(&self, partner_id: i32) -> Result<Vec<i64>, KnnError> {
+        if let Some(emr) = self.embedding_registry.as_ref() {
+            return emr.list_labels(partner_id);
+        } else {
+            return Err(KnnError::IndexNotLoaded);
+        }
+    }
+
+    pub fn get_item(&self, partner_id: i32, label: i64) -> Result<Option<Vec<f32>>, KnnError> {
+        if let Some(emr) = self.embedding_registry.as_ref() {
+            return emr.fetch_item(partner_id, label);
+        } else {
+            return Err(KnnError::IndexNotLoaded);
         }
     }
 
@@ -62,16 +79,18 @@ impl KnnService {
     pub fn load_model<P: AsRef<Path>>(
         &mut self,
         model: Model,
-        tf_model: P,
+        tf_model: Option<P>,
     ) -> Result<(), KnnError> {
-        info!(
-            "KnnService: Starting model load of {} from {}",
-            model.name,
-            tf_model.as_ref().display()
-        );
+        info!("KnnService: Starting model load of {}", model.name);
         let computer: Box<dyn UserEmbeddingComputer> = match model.model_type {
             ModelType::Average => Box::new(AverageComputer::default()),
-            ModelType::Tensorflow => Box::new(KnnTf::load_model(tf_model)?),
+            ModelType::Tensorflow => {
+                if let Some(mp) = tf_model {
+                    Box::new(KnnTf::load_model(mp)?)
+                } else {
+                    return Err(KnnError::InvalidPath);
+                }
+            }
             ModelType::XLA => unimplemented!(),
         };
         self.models.insert(model.name.clone(), computer);
@@ -110,7 +129,7 @@ impl KnnService {
         k: usize,
         model: Option<String>,
     ) -> Result<Vec<IndexResult>, KnnError> {
-        let mut user_vector = self.compute_user_vector(model, user_events)?;
+        let user_vector = self.compute_user_vector(model, user_events)?;
 
         if user_vector.user_event_used_count == 0 {
             return Ok(vec![]);

@@ -1,16 +1,16 @@
-use crate::knnservice::{KnnService, Model};
-use crate::{Distance, IndexConfig, KnnError};
-use log::{error, info, warn};
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+use serde::Deserialize;
 
-#[derive(Debug, Default, Clone)]
-struct KnnCountryConfig {
-    indices_root_path: PathBuf,
-    models: Vec<Model>,
-    platform: String,
-    version: String,
+use crate::knnservice::{KnnService, Model};
+use crate::KnnError;
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct KnnCountryConfig {
+    pub indices_root_path: PathBuf,
+    pub models: Vec<Model>,
+    pub platform: String,
+    pub version: String,
 }
 
 impl KnnCountryConfig {
@@ -28,10 +28,6 @@ pub struct KnnByCountry {
     countries: HashMap<String, KnnService>,
 }
 
-const DIMENSION_FILENAME: &str = "_dimension";
-const METRIC_FILENAME: &str = "_metrics";
-const DEFAULT_EF_SEARCH: usize = 50;
-
 impl KnnByCountry {
     pub fn new(config: KnnCountryConfig) -> KnnByCountry {
         KnnByCountry {
@@ -45,18 +41,19 @@ impl KnnByCountry {
         knn_service.load_index(self.config.indice_path(country))?;
 
         for m in self.config.models.iter() {
-            let mpath = m
-                .model_path
-                .join(self.config.platform.clone())
-                .join(m.version.clone())
-                .join(format!("country={}", country));
+            let mpath = m.model_path.as_ref().map(|mp| {
+                mp.join(self.config.platform.clone())
+                    .join(m.version.as_ref().unwrap())
+                    .join(format!("country={}", country))
+            });
+
             knn_service.load_model(m.clone(), mpath)?;
         }
         self.countries.insert(country.to_string(), knn_service);
         Ok(())
     }
 
-    fn load_countries(&mut self, countries: &[String]) -> Result<(), KnnError> {
+    pub fn load_countries(&mut self, countries: &[String]) -> Result<(), KnnError> {
         for c in countries {
             self.load(c)?
         }

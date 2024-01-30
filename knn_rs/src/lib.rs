@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use crate::knnservice::Model;
 use tensorflow::Status;
 use thiserror::Error;
 
@@ -46,23 +45,6 @@ pub enum KnnError {
 impl From<tensorflow::Status> for KnnError {
     fn from(status: Status) -> Self {
         KnnError::TFError(format!("{:?}", status))
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct IndexConfig {
-    distance: Distance,
-    dim: usize,
-    ef_search: usize,
-}
-
-impl IndexConfig {
-    pub fn new(distance: Distance, dim: usize, ef_search: usize) -> IndexConfig {
-        IndexConfig {
-            distance,
-            dim,
-            ef_search,
-        }
     }
 }
 

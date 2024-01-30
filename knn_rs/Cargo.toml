@@ -20,7 +20,7 @@ parquet = "50.0"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-faiss = { git = 'https://github.com/chroussel/faiss-rs.git' }
+faiss = { git = 'https://github.com/chroussel/faiss-rs.git'}
 faiss-sys = { git = 'https://github.com/chroussel/faiss-rs.git' }
 byteorder = "1.5.0"
 parking_lot = "0.12.1"

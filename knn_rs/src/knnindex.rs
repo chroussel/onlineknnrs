@@ -13,12 +13,14 @@ pub struct KnnIndex {
 }
 
 #[derive(Deserialize)]
+#[allow(unused)]
+#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub(crate) partner_id: i32,
     pub(crate) chunk_id: i32,
     pub(crate) count: usize,
     pub(crate) country: String,
-    pub(crate) index_param: String,
+    pub(crate) index_params: String,
     pub(crate) is_recommendable: bool,
     pub(crate) metrics: String,
     pub(crate) metric: String,
@@ -44,6 +46,17 @@ impl ProductIndex for KnnIndex {
             return i.dimension();
         }
         return 0;
+    }
+
+    fn list_labels(&self) -> Result<Vec<i64>, KnnError> {
+        let mut data = vec![];
+        for i in self.indices.iter() {
+            data.append(&mut i.list_labels()?);
+        }
+        for i in self.extra_items.iter() {
+            data.append(&mut i.list_labels()?);
+        }
+        Ok(data)
     }
 
     fn get_item(&self, label: i64) -> Result<Option<Vec<f32>>, KnnError> {
@@ -101,6 +114,13 @@ pub struct EmbeddingRegistry {
 impl EmbeddingRegistry {
     pub fn new(dim: usize, embeddings: HashMap<i32, KnnIndex>) -> EmbeddingRegistry {
         EmbeddingRegistry { dim, embeddings }
+    }
+
+    pub fn list_labels(&self, index_id: i32) -> Result<Vec<i64>, KnnError> {
+        if let Some(index) = self.embeddings.get(&index_id) {
+            return index.list_labels();
+        }
+        return Ok(vec![]);
     }
 
     pub fn fetch_item(&self, index_id: i32, label: i64) -> Result<Option<Vec<f32>>, KnnError> {

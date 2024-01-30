@@ -61,4 +61,8 @@ impl ProductIndex for WrappedIndex {
             .collect();
         Ok(res)
     }
+
+    fn list_labels(&self) -> Result<Vec<i64>, KnnError> {
+        Ok(self.mapping.keys().copied().collect())
+    }
 }
