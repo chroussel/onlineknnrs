@@ -1,24 +1,22 @@
+use config::{Config, Environment, File};
+use serde::Deserialize;
 use std::env;
-use config::{ConfigError, Config, File};
-
-#[derive(Debug, Deserialize)]
-pub struct Graphite {
-    pub endpoint: String,
-    pub prefix: String,
-}
 
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub country: Vec<String>,
-    pub graphite: Option<Graphite>
 }
 
 impl Settings {
-    pub fn new() -> Result<Self, ConfigError> {
-        let mut s = Config::new();
-        s.merge(File::with_name("config/default"))?;
-        let env = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
-        s.merge(File::with_name(&format!("config/{}", env)).required(false))?;
-        s.try_into()
+    pub fn new() -> anyhow::Result<Self> {
+        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
+        let s = Config::builder()
+            .add_source(File::with_name("config/default"))
+            .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
+            .add_source(Environment::with_prefix("KNN"))
+            .build()?;
+
+        let res = s.try_deserialize()?;
+        Ok(res)
     }
 }

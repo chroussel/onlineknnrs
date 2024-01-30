@@ -9,11 +9,14 @@ pub trait ProductIndex {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct IndexResult(pub i64, pub f32);
+pub struct IndexResult {
+    pub label: i64,
+    pub distance: f32,
+}
 
 impl PartialOrd for IndexResult {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.1.partial_cmp(&other.1)
+        self.distance.partial_cmp(&other.distance)
     }
 }
 
@@ -21,6 +24,6 @@ impl Eq for IndexResult {}
 
 impl Ord for IndexResult {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.1.total_cmp(&other.1)
+        self.distance.total_cmp(&other.distance)
     }
 }

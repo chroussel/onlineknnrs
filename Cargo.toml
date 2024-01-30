@@ -1,6 +1,8 @@
 [workspace]
+resolver = "2"
 members=[
     "service",
+    "knn_rs"
 ]
 
 [patch.crates-io]

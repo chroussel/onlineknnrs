@@ -6,7 +6,6 @@ use crate::knnindex::EmbeddingRegistry;
 use crate::loader::Loader;
 use crate::productindex::ProductIndex;
 use crate::*;
-use log::info;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

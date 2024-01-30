@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate tracing;
 use std::str::FromStr;
 
 use tensorflow::Status;

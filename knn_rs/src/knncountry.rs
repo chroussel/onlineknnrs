@@ -2,18 +2,18 @@ use serde::Deserialize;
 
 use crate::knnservice::{KnnService, Model};
 use crate::KnnError;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 #[derive(Debug, Default, Clone, Deserialize)]
-pub struct KnnCountryConfig {
+pub struct KnnConfig {
     pub indices_root_path: PathBuf,
     pub models: Vec<Model>,
     pub platform: String,
     pub version: String,
 }
 
-impl KnnCountryConfig {
+impl KnnConfig {
     fn indice_path(&self, country: &str) -> PathBuf {
         self.indices_root_path
             .join(self.platform.clone())
@@ -22,14 +22,13 @@ impl KnnCountryConfig {
     }
 }
 
-#[derive(Default)]
 pub struct KnnByCountry {
-    config: KnnCountryConfig,
+    config: KnnConfig,
     countries: HashMap<String, KnnService>,
 }
 
 impl KnnByCountry {
-    pub fn new(config: KnnCountryConfig) -> KnnByCountry {
+    pub fn new(config: KnnConfig) -> KnnByCountry {
         KnnByCountry {
             config,
             countries: HashMap::new(),

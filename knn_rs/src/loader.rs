@@ -1,6 +1,5 @@
 use byteorder::{BigEndian, ReadBytesExt};
 use faiss::Idx;
-use log::*;
 use std::collections::HashMap;
 use std::io::{BufReader, ErrorKind};
 use std::path::Path;

@@ -10,12 +10,12 @@ pub struct WrappedIndex {
     // Product to faiss id mapping
     mapping: HashMap<i64, faiss::Idx>,
     norm: Vec<f32>,
-    index: Arc<RwLock<Box<dyn faiss::Index>>>,
+    index: Arc<RwLock<Box<dyn faiss::Index + Sync + Send>>>,
 }
 
 impl WrappedIndex {
     pub fn new(
-        index: Box<dyn faiss::Index>,
+        index: Box<dyn faiss::Index + Sync + Send>,
         mapping: HashMap<i64, faiss::Idx>,
         norm: Vec<f32>,
     ) -> WrappedIndex {
@@ -57,7 +57,10 @@ impl ProductIndex for WrappedIndex {
             .into_iter()
             .map(|d| d.to_native())
             .zip(r.distances.into_iter())
-            .map(|a| IndexResult(a.0, a.1))
+            .map(|a| IndexResult {
+                label: a.0,
+                distance: a.1,
+            })
             .collect();
         Ok(res)
     }

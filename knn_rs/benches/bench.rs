@@ -6,7 +6,7 @@ use criterion::black_box;
 use criterion::Criterion;
 
 use knn_rs::embedding_computer::UserEvent;
-use knn_rs::knncountry::{KnnByCountry, KnnCountryConfig};
+use knn_rs::knncountry::{KnnByCountry, KnnConfig};
 use knn_rs::knnservice::*;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -15,7 +15,7 @@ const NB_EMBEDDINGS: usize = 50;
 const INDEX_ID: i32 = 868;
 
 fn bench(c: &mut Criterion) {
-    let config = KnnCountryConfig {
+    let config = KnnConfig {
         platform: "EU".into(),
         indices_root_path: PathBuf::from_str("data/all_indices").expect("path"),
         models: vec![Model {
